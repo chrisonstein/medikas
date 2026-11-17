@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Instellingen → Huisstijl: sjabloon, logo, kleuren, lettertypen en patroon van de factuur, met live voorbeeld.
+/// Instellingen → Huisstijl: opmaak, logo, kleuren, lettertypen en patroon van de factuur, met live voorbeeld.
 struct BrandSettingsTab: View {
     @EnvironmentObject var store: Store
 
@@ -25,22 +25,13 @@ struct BrandSettingsTab: View {
         }
     }
 
-    // MARK: Sjabloon
+    // MARK: Opmaak
 
     private var templateSection: some View {
-        Section {
-            Picker("Sjabloon", selection: style.layout) {
-                ForEach(InvoiceStyle.Layout.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
+        Section("Opmaak") {
             Toggle("Titel in hoofdletters (FACTUUR)", isOn: style.titleUppercase)
             Toggle("Lijnen met kleurverloop", isOn: style.gradientLines)
                 .help("Verloop van de hoofdkleur naar de tweede kleur, boven het totaal en de voettekst")
-        } header: {
-            Text("Sjabloon")
-        } footer: {
-            Text("Klassiek: gekleurde tabelkop. Modern: rustig, met getinte tabelkop, betaalvak en lijn met kleurverloop.")
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 

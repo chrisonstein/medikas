@@ -5,18 +5,12 @@ import CoreText
 // MARK: - Huisstijl voor de factuur (instelbaar; opgeslagen in data.json)
 
 struct InvoiceStyle: Codable, Equatable {
-    enum Layout: String, Codable, CaseIterable, Identifiable {
-        case klassiek, modern
-        var id: Self { self }
-        var label: String { self == .klassiek ? "Klassiek" : "Modern" }
-    }
     enum Pattern: String, Codable, CaseIterable, Identifiable {
         case geen, logo, afbeelding
         var id: Self { self }
         var label: String { switch self { case .geen: "Geen"; case .logo: "Logo herhalen"; case .afbeelding: "Eigen afbeelding" } }
     }
 
-    var layout: Layout = .klassiek
     /// Kleuren als hex (zonder #)
     var textHex = "1F2328"
     var primaryHex = "1A7378"
@@ -37,7 +31,6 @@ struct InvoiceStyle: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = InvoiceStyle()
-        layout = c.value(.layout, d.layout)
         textHex = c.value(.textHex, d.textHex)
         primaryHex = c.value(.primaryHex, d.primaryHex)
         secondaryHex = c.value(.secondaryHex, d.secondaryHex)
@@ -61,14 +54,18 @@ struct Brand {
 
     var text: Color { Color(hex: style.textHex) ?? Color(white: 0.12) }
     var soft: Color { text.opacity(0.62) }
-    var rule: Color { text.opacity(0.14) }
+    /// Lijnkleur: 22% tekstkleur op wit, ondoorzichtig gemengd.
+    /// Let op: lijnen op de factuur minimaal 1 pt; dunnere lijnen verdwijnen in de PDF zodra er een logo op staat.
+    var rule: Color {
+        let base = NSColor(text).usingColorSpace(.sRGB) ?? .black
+        return Color(nsColor: base.blended(withFraction: 0.78, of: .white) ?? .lightGray)
+    }
     var primary: Color { Color(hex: style.primaryHex) ?? invoiceAccent }
     var secondary: Color { Color(hex: style.secondaryHex) ?? primary }
     var surface: Color { Color(hex: style.surfaceHex) ?? Color(white: 0.96) }
     var line: LinearGradient {
         LinearGradient(colors: style.gradientLines ? [primary, secondary] : [primary, primary], startPoint: .leading, endPoint: .trailing)
     }
-    var isModern: Bool { style.layout == .modern }
 
     /// Afbeelding voor het patroon onderaan (nil = geen patroon).
     var patternTile: NSImage? {

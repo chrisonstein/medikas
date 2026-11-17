@@ -69,7 +69,6 @@ struct InvoicePage: View {
     private var soft: Color { brand.soft }
     private var rule: Color { brand.rule }
     private var accent: Color { brand.primary }
-    private var modern: Bool { brand.isModern }
 
     var body: some View {
         if let part { measuringBody(part) } else { pageBody }
@@ -80,7 +79,7 @@ struct InvoicePage: View {
             switch part {
             case .firstHeader: header; addressBlock; title
             case .nextHeader: continuationHeader
-            case .closing: if modern { modernTotals; modernClosing } else { totals; closing }
+            case .closing: totals; closing
             case .footer: footer
             }
         }
@@ -94,7 +93,7 @@ struct InvoicePage: View {
             if isFirst { header; addressBlock; title } else { continuationHeader }
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in itemView(item) }
             if isLast {
-                if modern { modernTotals; modernClosing } else { totals; closing }
+                totals; closing
             }
             Spacer(minLength: 0)
             footer
@@ -110,7 +109,7 @@ struct InvoicePage: View {
         .environment(\.colorScheme, .light)
     }
 
-    // MARK: Klassieke kop
+    // MARK: Kop
 
     private var header: some View {
         HStack(alignment: .top) {
@@ -159,12 +158,12 @@ struct InvoicePage: View {
 
     @ViewBuilder private var metaRows: some View {
         meta(invoice.isCredit ? "Creditnummer" : "Factuurnummer", invoice.number, bold: true)
-        meta(modern ? "\(invoice.isCredit ? "Credit" : "Factuur")datum" : "Datum", modern ? invoice.date.short : invoice.date.long)
-        if !invoice.isCredit { meta("Vervaldatum", modern ? invoice.dueDate.short : invoice.dueDate.long) }
-        if !invoice.reference.isEmpty { meta("Kenmerk", invoice.reference, bold: modern) }
+        meta("\(invoice.isCredit ? "Credit" : "Factuur")datum", invoice.date.short)
+        if !invoice.isCredit { meta("Vervaldatum", invoice.dueDate.short) }
+        if !invoice.reference.isEmpty { meta("Kenmerk", invoice.reference, bold: true) }
         if !invoice.relatedNumber.isEmpty {
             meta(invoice.isCredit ? "Crediteert factuur" : "Vervangt factuur",
-                 invoice.relatedNumber + (invoice.relatedDate.map { " van \(modern ? $0.short : $0.long)" } ?? ""), bold: true)
+                 invoice.relatedNumber + (invoice.relatedDate.map { " van \($0.short)" } ?? ""), bold: true)
         }
         if !invoice.periodText.isEmpty { meta("Periode", invoice.periodText) }
     }
@@ -182,7 +181,7 @@ struct InvoicePage: View {
     }
 
     private var title: some View {
-        Text(titleText).font(brand.heading(22, .bold)).foregroundStyle(modern ? ink : accent)
+        Text(titleText).font(brand.heading(22, .bold)).foregroundStyle(ink)
             .padding(.bottom, 12)
     }
 
@@ -192,7 +191,7 @@ struct InvoicePage: View {
         GridRow {
             Text(label).foregroundStyle(soft)
             Text(value).fontWeight(bold ? .semibold : .regular)
-                .gridColumnAlignment(modern ? .trailing : .leading)
+                .gridColumnAlignment(.trailing)
         }
     }
 
@@ -220,11 +219,7 @@ struct InvoicePage: View {
         switch item {
         case .sectionTitle(let title):
             Group {
-                if modern {
-                    Text(title.uppercased()).font(brand.body(8, .semibold)).kerning(1.4).foregroundStyle(ink)
-                } else {
-                    Text(title).font(brand.heading(11, .semibold)).foregroundStyle(accent)
-                }
+                Text(title.uppercased()).font(brand.body(8, .semibold)).kerning(1.4).foregroundStyle(ink)
             }
             .frame(height: 24, alignment: .bottomLeading)
         case .gap:
@@ -275,70 +270,38 @@ struct InvoicePage: View {
         }
     }
 
-    private func label(_ s: String, keepCase: Bool = false) -> String { modern && !keepCase ? s.uppercased() : s }
+    private func label(_ s: String, keepCase: Bool = false) -> String { keepCase ? s : s.uppercased() }
 
-    @ViewBuilder private func headerRow<C: View>(@ViewBuilder _ content: () -> C) -> some View {
-        if modern {
-            HStack(spacing: 0, content: content)
-                .font(brand.body(7.5, .semibold)).kerning(1)
-                .foregroundStyle(accent)
-                .frame(height: 22)
-                .background(brand.surface, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-        } else {
-            HStack(spacing: 0, content: content)
-                .font(brand.body(8, .semibold))
-                .foregroundStyle(.white)
-                .frame(height: 22)
-                .background(accent)
-        }
+    private func headerRow<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+        HStack(spacing: 0, content: content)
+            .font(brand.body(7.5, .semibold)).kerning(1)
+            .foregroundStyle(accent)
+            .frame(height: 22)
+            .background(brand.surface, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 
-    @ViewBuilder private func row<C: View>(_ i: Int, @ViewBuilder _ content: () -> C) -> some View {
-        if modern {
-            HStack(spacing: 0, content: content)
-                .frame(height: rowH)
-                .overlay(alignment: .bottom) { Rectangle().fill(rule).frame(height: 0.6) }
-        } else {
-            HStack(spacing: 0, content: content)
-                .frame(height: rowH)
-                .background(i.isMultiple(of: 2) ? Color.clear : brand.surface.opacity(0.6))
-        }
+    private func row<C: View>(_ i: Int, @ViewBuilder _ content: () -> C) -> some View {
+        HStack(spacing: 0, content: content)
+            .frame(height: rowH)
+            .overlay(alignment: .bottom) { Rectangle().fill(rule).frame(height: 1) }
     }
 
     private func totalRow<C: View>(@ViewBuilder _ content: () -> C) -> some View {
         HStack(spacing: 0, content: content)
             .fontWeight(.semibold)
             .frame(height: 22)
-            .overlay(alignment: .top) { Rectangle().fill(modern ? Color.clear : rule).frame(height: 0.7) }
+            .overlay(alignment: .bottom) { Rectangle().fill(rule).frame(height: 1) }
             .monospacedDigit()
     }
 
     private func cell(_ text: String, _ width: CGFloat, _ align: Alignment = .trailing) -> some View {
         Text(text).lineLimit(1).truncationMode(.tail)
-            .padding(.horizontal, modern ? 6 : 4)
+            .padding(.horizontal, 6)
             .frame(width: width, alignment: align)
             .monospacedDigit()
     }
 
     // MARK: Totalen
-
-    private var totals: some View {
-        HStack {
-            Spacer()
-            Grid(alignment: .trailing, horizontalSpacing: 16, verticalSpacing: 5) {
-                subtotalRows
-                GridRow { Rectangle().fill(ink).frame(height: 0.8).gridCellColumns(2) }
-                GridRow {
-                    Text(invoice.isCredit ? "Totaal creditbedrag" : "Totaal te betalen").font(brand.heading(11.5, .bold))
-                    Text(invoice.total.euro).font(brand.heading(11.5, .bold)).foregroundStyle(accent)
-                }
-                vatRow
-            }
-            .frame(width: 300)
-            .monospacedDigit()
-        }
-        .padding(.top, 18)
-    }
 
     @ViewBuilder private var subtotalRows: some View {
         GridRow {
@@ -362,7 +325,7 @@ struct InvoicePage: View {
         }
     }
 
-    private var modernTotals: some View {
+    private var totals: some View {
         HStack {
             Spacer()
             Grid(alignment: .trailing, horizontalSpacing: 16, verticalSpacing: 6) {
@@ -382,6 +345,14 @@ struct InvoicePage: View {
         .padding(.top, 20)
     }
 
+    @ViewBuilder private var relatedText: some View {
+        if invoice.isCredit {
+            Text("Deze creditfactuur crediteert factuur \(invoice.relatedNumber)\(invoice.relatedDate.map { " van \($0.long)" } ?? "") volledig. U hoeft niets te betalen; een eventueel al betaald bedrag wordt verrekend of teruggestort.")
+        } else if !invoice.relatedNumber.isEmpty {
+            Text("Deze factuur vervangt factuur \(invoice.relatedNumber)\(invoice.relatedDate.map { " van \($0.long)" } ?? ""), die met een creditfactuur is gecrediteerd.")
+        }
+    }
+
     private var closing: some View {
         VStack(alignment: .leading, spacing: 8) {
             relatedText
@@ -391,37 +362,6 @@ struct InvoicePage: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(.top, 26)
-    }
-
-    @ViewBuilder private var relatedText: some View {
-        if invoice.isCredit {
-            Text("Deze creditfactuur crediteert factuur \(invoice.relatedNumber)\(invoice.relatedDate.map { " van \($0.long)" } ?? "") volledig. U hoeft niets te betalen; een eventueel al betaald bedrag wordt verrekend of teruggestort.")
-        } else if !invoice.relatedNumber.isEmpty {
-            Text("Deze factuur vervangt factuur \(invoice.relatedNumber)\(invoice.relatedDate.map { " van \($0.long)" } ?? ""), die met een creditfactuur is gecrediteerd.")
-        }
-    }
-
-    private var modernClosing: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 6) {
-                relatedText
-                if !invoice.notes.isEmpty { Text(invoice.notes) }
-                if !settings.closingText.isEmpty { Text(settings.closingText) }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            // Betaalvak
-            VStack(alignment: .leading, spacing: 6) {
-                Text(invoice.isCredit ? "U hoeft voor deze creditfactuur niets te betalen." : paymentSentence)
-                    .font(brand.body(9.5, .medium))
-                let ids = [settings.iban.isEmpty ? nil : "IBAN \(settings.iban)\(settings.bic.isEmpty ? "" : " · BIC \(settings.bic)")"].compactMap { $0 }
-                if !ids.isEmpty { Text(ids.joined(separator: " · ")).foregroundStyle(soft) }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 16).padding(.vertical, 13)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(brand.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-        .padding(.top, 24)
     }
 
     private var paymentSentence: String {
@@ -437,13 +377,13 @@ struct InvoicePage: View {
     // MARK: Voet
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: modern ? 7 : 4) {
-            Rectangle().fill(modern ? AnyShapeStyle(brand.line) : AnyShapeStyle(rule)).frame(height: modern ? 2 : 0.7)
+        VStack(alignment: .leading, spacing: 7) {
+            Rectangle().fill(brand.line).frame(height: 2)
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     // Links eerst de handelsnaam, dan de registratiegegevens en IBAN
                     Text(([footerName] + registrationItems).filter { !$0.isEmpty }
-                            .joined(separator: modern ? " · " : "   ·   "))
+                            .joined(separator: " · "))
                 }
                 Spacer()
                 if pageCount > 1 { Text("Pagina \(pageNumber) van \(pageCount)") }
