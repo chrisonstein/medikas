@@ -2,22 +2,41 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>MediKas</string>
-    <key>CFBundleDisplayName</key><string>MediKas</string>
-    <key>CFBundleExecutable</key><string>MediKas</string>
-    <key>CFBundleIdentifier</key><string>io.github.chrisonstein.medikas</string>
-    <key>CFBundleIconFile</key><string>AppIcon</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.0</string>
-    <key>CFBundleVersion</key><string>1</string>
-    <key>CFBundleDevelopmentRegion</key><string>nl</string>
-    <key>CFBundleLocalizations</key><array><string>nl</string></array>
-    <key>LSApplicationCategoryType</key><string>public.app-category.finance</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
-    <key>NSHighResolutionCapable</key><true/>
-    <key>SUEnableAutomaticChecks</key><true/>
-    <key>SUFeedURL</key><string>https://github.com/chrisonstein/medikas/releases/latest/download/appcast.xml</string>
-    <key>SUPublicEDKey</key><string>tr0EwSNm4yLSoLrUnI/49Kz0i+Y0Db2UTjHr5e592ko=</string>
-    <key>NSHumanReadableCopyright</key><string>Boekhouding voor zzp-artsen</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>nl</string>
+	<key>CFBundleDisplayName</key>
+	<string>MediKas</string>
+	<key>CFBundleExecutable</key>
+	<string>MediKas</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.chrisonstein.medikas</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>nl</string>
+	</array>
+	<key>CFBundleName</key>
+	<string>MediKas</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.1</string>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.finance</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Boekhouding voor zzp-artsen</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/chrisonstein/medikas/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>tr0EwSNm4yLSoLrUnI/49Kz0i+Y0Db2UTjHr5e592ko=</string>
 </dict>
 </plist>

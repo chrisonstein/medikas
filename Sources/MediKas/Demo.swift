@@ -76,7 +76,17 @@ enum Demo {
         inv.date = day
         inv.dueDate = day.adding(days: 30)
 
-        if let data = InvoicePDF.data(for: inv, settings: s, logo: nil) {
+        // Optioneel voor testen: huisstijl (JSON), logo en patroon via omgevingsvariabelen
+        let env = ProcessInfo.processInfo.environment
+        if let path = env["MEDIKAS_DEMO_STYLE"], let d = try? Data(contentsOf: URL(fileURLWithPath: path)),
+           let style = try? JSONDecoder().decode(InvoiceStyle.self, from: d) { s.style = style }
+        if let fonts = env["MEDIKAS_DEMO_FONTS"] {
+            BrandFonts.register(((try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: fonts), includingPropertiesForKeys: nil)) ?? []))
+        }
+        let logo = env["MEDIKAS_DEMO_LOGO"].flatMap { NSImage(contentsOfFile: $0) }
+        let pattern = env["MEDIKAS_DEMO_PATTERN"].flatMap { NSImage(contentsOfFile: $0) }
+        inv.reference = env["MEDIKAS_DEMO_STYLE"] == nil ? "" : "Voorbeeld"
+        if let data = InvoicePDF.data(for: inv, settings: s, brand: Brand(style: s.style, logo: logo, patternImage: pattern)) {
             try? data.write(to: URL(fileURLWithPath: args[i + 1]))
             print("PDF geschreven: \(args[i + 1]) — totaal \(inv.total.euro)")
         }
@@ -229,6 +239,15 @@ enum Demo {
         shot("statistieken-licht", StatsView(), size: CGSize(width: 1180, height: 1500), dark: false)
         shot("editor-licht", InvoiceEditorView(draft: store.data.invoices[3], isNew: false), size: CGSize(width: 1080, height: 1500), dark: false)
         shot("instellingen-weergave", AppearanceSettingsTab(), size: CGSize(width: 660, height: 640), dark: false)
+        do {
+            let env = ProcessInfo.processInfo.environment
+            if let path = env["MEDIKAS_DEMO_STYLE"], let d = try? Data(contentsOf: URL(fileURLWithPath: path)),
+               let st = try? JSONDecoder().decode(InvoiceStyle.self, from: d) { store.data.settings.style = st }
+            store.logo = env["MEDIKAS_DEMO_LOGO"].flatMap { NSImage(contentsOfFile: $0) }
+            store.patternImage = env["MEDIKAS_DEMO_PATTERN"].flatMap { NSImage(contentsOfFile: $0) }
+            store.data.settings.iban = "NL00 BANK 0123 4567 89"; store.data.settings.kvk = "12345678"
+            shot("huisstijl", BrandSettingsTab(), size: CGSize(width: 1060, height: 780), dark: false)
+        }
         store.data.invoices[2].memo = "Herinnering gestuurd op 3 december"
         shot("facturen-licht", InvoicesView(), size: CGSize(width: 1180, height: 900), dark: false)
         shot("betalingen-licht", PaymentsView(), size: CGSize(width: 1180, height: 1000), dark: false)

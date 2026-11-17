@@ -235,6 +235,12 @@ struct InvoiceEditorView: View {
                         .help("Concepten tellen niet mee in de cijfers. Bij PDF bewaren of mailen wordt een factuur automatisch op 'verstuurd' gezet.")
                     }
                 }
+                GridRow {
+                    LabeledField(label: "Kenmerk", hint: "Optioneel, bijv. een referentie of ordernummer van de praktijk") {
+                        InputField("Kenmerk", text: $draft.reference, icon: "tag")
+                    }
+                    .gridCellColumns(2)
+                }
             }
         }
         .card()

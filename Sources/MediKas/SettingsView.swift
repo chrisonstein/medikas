@@ -4,18 +4,19 @@ import SwiftUI
 struct SettingsView: View {
     var body: some View {
         TabView {
-            AppearanceSettingsTab()
+            AppearanceSettingsTab().frame(width: 660, height: 640)
                 .tabItem { Label("Weergave", systemImage: "paintpalette") }
-            BusinessSettingsTab()
+            BusinessSettingsTab().frame(width: 660, height: 640)
                 .tabItem { Label("Bedrijf", systemImage: "person.crop.rectangle") }
-            InvoicingSettingsTab()
+            InvoicingSettingsTab().frame(width: 660, height: 640)
                 .tabItem { Label("Facturatie", systemImage: "doc.text") }
-            StorageSettingsTab()
+            BrandSettingsTab().frame(width: 1060, height: 780)
+                .tabItem { Label("Huisstijl", systemImage: "swatchpalette") }
+            StorageSettingsTab().frame(width: 660, height: 640)
                 .tabItem { Label("Opslag", systemImage: "externaldrive.badge.icloud") }
-            UpdatesSettingsTab()
+            UpdatesSettingsTab().frame(width: 660, height: 640)
                 .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
         }
-        .frame(width: 660, height: 640)
     }
 }
 

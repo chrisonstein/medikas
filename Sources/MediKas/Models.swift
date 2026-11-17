@@ -40,6 +40,8 @@ struct BusinessSettings: Codable, Equatable {
     var closingText = ""
     /// Bewaar automatisch een PDF van elke verstuurde factuur in de gegevensmap.
     var archivePDFs = true
+    /// Huisstijl van de factuur (sjabloon, kleuren, lettertypen, patroon).
+    var style = InvoiceStyle()
 
     init() {}
 
@@ -72,6 +74,7 @@ struct BusinessSettings: Codable, Equatable {
         paymentText = c.value(.paymentText, d.paymentText)
         closingText = c.value(.closingText, d.closingText)
         archivePDFs = c.value(.archivePDFs, d.archivePDFs)
+        style = c.value(.style, d.style)
     }
 
     var isIncomplete: Bool { practiceName.isEmpty || ownerName.isEmpty || iban.isEmpty || defaultHourlyRate == 0 }
@@ -215,6 +218,8 @@ struct Invoice: Identifiable, Codable, Hashable {
     var notes = ""
     /// Interne opmerking (alleen in het overzicht, niet op de factuur).
     var memo = ""
+    /// Kenmerk op de factuur (optioneel, bv. ordernummer of referentie van de praktijk).
+    var reference = ""
     var isSent = false
     var sentDate: Date?
 
@@ -253,6 +258,7 @@ struct Invoice: Identifiable, Codable, Hashable {
         payments = c.value(.payments, d.payments)
         notes = c.value(.notes, d.notes)
         memo = c.value(.memo, d.memo)
+        reference = c.value(.reference, d.reference)
         isSent = c.value(.isSent, d.isSent)
         sentDate = c.value(.sentDate, d.sentDate)
         kind = c.value(.kind, d.kind)

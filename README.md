@@ -19,6 +19,14 @@ Boekhouding voor zzp-artsen, zoals een waarnemend huisarts: facturen voor waarne
   - **Corrigeren…** maakt een creditfactuur (dezelfde regels met min-bedragen, met verwijzing naar de oude factuur) en, als je dat wilt, een nieuwe factuur om aan te passen. Alle drie zijn aan elkaar gekoppeld en staan bij de praktijk.
   - De oude factuur krijgt de status *Gecrediteerd* en telt niet meer mee. Bij het mailen van de nieuwe factuur gaat de creditfactuur automatisch mee.
   - **Toch bewerken…** kan alleen na een melding met uitleg. De oude PDF wordt dan bewaard in `Facturen/Eerdere versies`, en de app legt vast dat de factuur na verzending is aangepast.
+- **Huisstijl van de factuur** (Instellingen → Huisstijl, met live voorbeeld):
+  - sjabloon **Klassiek** of **Modern** (getinte tabelkop, betaalvak, lijnen met kleurverloop)
+  - **logo** (PNG, PDF of SVG, scherp op papier) met instelbare hoogte
+  - **kleuren** voor tekst, hoofdkleur, tweede kleur (verloop) en vlakken, via hexcode, kleurkiezer of overgenomen uit het logo
+  - **lettertypen** voor koppen en tekst: die van macOS, of zelf toegevoegd (.ttf/.otf, bijv. Inter)
+  - een **patroon** onderaan de pagina (herhaald beeldmerk, instelbare dekking en hoogte; nooit onder tekst)
+  - logo, patroon en lettertypen staan in de map `Huisstijl/` in je gegevensmap, dus ze reizen mee naar een andere Mac
+  - per factuur een optioneel **kenmerk**
 - **Betalingen** handmatig registreren (ook deelbetalingen). De status gaat dan van Open naar Deels betaald, Te laat of Betaald.
 - **Praktijken**: een overzicht met per praktijk de plaats, het aantal facturen, wat dit jaar gefactureerd is, wat openstaat en de laatste factuur. Klik door naar een praktijkpagina met:
   - vier beknopte cijfers: gefactureerd, openstaand, uren en gemiddelde betaaltijd
@@ -80,6 +88,7 @@ Alles staat in één map. Standaard is dat `~/Library/Application Support/MediKa
 ```
 data.json            alle gegevens
 logo.png             logo
+Huisstijl/           patroon en eigen lettertypen
 Backups/             dagelijkse back-ups van data.json
 Facturen/2026/       PDF van elke verstuurde factuur
 Facturen/Verwijderd/ PDF's van verwijderde facturen

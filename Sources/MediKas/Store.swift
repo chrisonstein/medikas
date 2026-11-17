@@ -36,6 +36,7 @@ final class Store: ObservableObject {
     @Published var editingInvoice: Invoice?
     @Published var paymentInvoice: Invoice?
     @Published var logo: NSImage?
+    @Published var patternImage: NSImage?
     /// Fouten en echte waarschuwingen: getoond als standaard macOS-melding (sheet op het actieve venster).
     /// Eerste regel = titel, de rest = toelichting.
     @Published var alert: String? { didSet { if let alert, alert != oldValue { presentAlert(alert) } } }
@@ -195,6 +196,8 @@ final class Store: ObservableObject {
         try? fm.createDirectory(at: backupFolder, withIntermediateDirectories: true)
         data = loaded
         logo = NSImage(contentsOf: logoURL)
+        patternImage = NSImage(contentsOf: patternURL)
+        BrandFonts.register(customFontFiles)
         lastModDate = Store.modDate(dataURL)
         makeDailyBackup()
         DispatchQueue.main.async { [weak self] in self?.runAutomaticBackup() }
@@ -426,7 +429,7 @@ final class Store: ObservableObject {
         guard data.settings.archivePDFs, unavailableReason == nil,
               let i = data.invoices.firstIndex(where: { $0.id == id }), data.invoices[i].isSent else { return }
         let inv = data.invoices[i]
-        guard let pdf = InvoicePDF.data(for: inv, settings: data.settings, logo: logo) else { return }
+        guard let pdf = InvoicePDF.data(for: inv, settings: data.settings, brand: brand) else { return }
         let rel = "Facturen/\(inv.date.year)/\(InvoicePDF.fileName(inv))"
         let url = folder.appendingPathComponent(rel)
         do {
@@ -466,14 +469,46 @@ final class Store: ObservableObject {
         NSWorkspace.shared.open(archiveFolder)
     }
 
-    // MARK: Logo
+    // MARK: Huisstijl (logo, patroon, lettertypen)
+
+    var brandFolder: URL { folder.appendingPathComponent("Huisstijl", isDirectory: true) }
+    var patternURL: URL { brandFolder.appendingPathComponent("patroon.png") }
+    var fontsFolder: URL { brandFolder.appendingPathComponent("Lettertypen", isDirectory: true) }
+
+    /// Huidige huisstijl voor de PDF.
+    var brand: Brand { Brand(style: data.settings.style, logo: logo, patternImage: patternImage) }
+
+    static let imageTypes: [UTType] = [.png, .jpeg, .tiff, .heic, .pdf, .svg]
+
+    /// Afbeelding als PNG op hoge resolutie (ook vector-logo's blijven scherp op papier).
+    static func highResPNG(_ image: NSImage, maxPixels: CGFloat = 2400) -> Data? {
+        let size = image.size
+        guard size.width > 0, size.height > 0 else { return nil }
+        let scale = min(4, maxPixels / max(size.width, size.height))
+        let px = NSSize(width: max(1, (size.width * max(scale, 1)).rounded()), height: max(1, (size.height * max(scale, 1)).rounded()))
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(px.width), pixelsHigh: Int(px.height),
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        rep.size = size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(in: NSRect(origin: .zero, size: size))
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.representation(using: .png, properties: [:])
+    }
+
+    private func pickImage(_ message: String) -> NSImage? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = Store.imageTypes
+        panel.message = message
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return NSImage(contentsOf: url)
+    }
 
     func chooseLogo() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png, .jpeg, .tiff, .heic, .pdf]
-        guard panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url),
-              let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-              let png = rep.representation(using: .png, properties: [:]) else { return }
+        guard let image = pickImage("Kies je logo (PNG, PDF of SVG; liefst met transparante achtergrond)."),
+              let png = Store.highResPNG(image) else { return }
         try? png.write(to: logoURL)
         logo = NSImage(data: png)
     }
@@ -481,6 +516,76 @@ final class Store: ObservableObject {
     func removeLogo() {
         try? FileManager.default.removeItem(at: logoURL)
         logo = nil
+    }
+
+    func choosePattern() {
+        guard let image = pickImage("Kies een afbeelding voor het patroon onderaan, bijvoorbeeld het beeldmerk."),
+              let png = Store.highResPNG(image, maxPixels: 600) else { return }
+        try? FileManager.default.createDirectory(at: brandFolder, withIntermediateDirectories: true)
+        try? png.write(to: patternURL)
+        patternImage = NSImage(data: png)
+        if data.settings.style.pattern == .geen { data.settings.style.pattern = .afbeelding }
+    }
+
+    func removePattern() {
+        try? FileManager.default.removeItem(at: patternURL)
+        patternImage = nil
+        if data.settings.style.pattern == .afbeelding { data.settings.style.pattern = .geen }
+    }
+
+    /// Eigen lettertypen (bestanden in Huisstijl/Lettertypen) en hun families.
+    var customFontFiles: [URL] {
+        ((try? FileManager.default.contentsOfDirectory(at: fontsFolder, includingPropertiesForKeys: nil)) ?? [])
+            .filter { ["ttf", "otf", "ttc"].contains($0.pathExtension.lowercased()) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    var customFontFamilies: [String] {
+        Array(Set(customFontFiles.flatMap(BrandFonts.families))).sorted()
+    }
+
+    func addFonts() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "ttf"), UTType(filenameExtension: "otf"), UTType(filenameExtension: "ttc")].compactMap { $0 }
+        panel.allowsMultipleSelection = true
+        panel.message = "Kies lettertypebestanden (.ttf of .otf), bijvoorbeeld alle gewichten van Inter."
+        guard panel.runModal() == .OK else { return }
+        try? FileManager.default.createDirectory(at: fontsFolder, withIntermediateDirectories: true)
+        var added: [URL] = []
+        for url in panel.urls {
+            let dest = fontsFolder.appendingPathComponent(url.lastPathComponent)
+            try? FileManager.default.removeItem(at: dest)
+            if (try? FileManager.default.copyItem(at: url, to: dest)) != nil { added.append(dest) }
+        }
+        BrandFonts.register(added)
+        objectWillChange.send()
+        let families = Set(added.flatMap(BrandFonts.families))
+        show(families.isEmpty ? "Geen bruikbaar lettertype gevonden." : "Lettertype toegevoegd: \(families.sorted().joined(separator: ", ")).")
+    }
+
+    func removeFontFamily(_ family: String) {
+        for url in customFontFiles where BrandFonts.families(in: url).contains(family) {
+            CTFontManagerUnregisterFontsForURL(url as CFURL, .process, nil)
+            try? FileManager.default.removeItem(at: url)
+        }
+        if data.settings.style.headingFont == family { data.settings.style.headingFont = "" }
+        if data.settings.style.bodyFont == family { data.settings.style.bodyFont = "" }
+        objectWillChange.send()
+    }
+
+    /// Kleuren overnemen uit het logo.
+    func colorsFromLogo() {
+        guard let logo, let c = LogoColors.extract(from: logo) else {
+            alert = "Er konden geen kleuren uit het logo worden gehaald."
+            return
+        }
+        undoable("Kleuren uit logo") {
+            if let t = c.text { data.settings.style.textHex = t }
+            data.settings.style.primaryHex = c.primary
+            data.settings.style.secondaryHex = c.secondary
+            data.settings.style.surfaceHex = c.surface
+        }
+        show("Kleuren overgenomen uit het logo. Pas ze gerust aan.")
     }
 
     // MARK: Ongedaan maken & meldingen
@@ -682,10 +787,10 @@ final class Store: ObservableObject {
     private static func fingerprint(_ i: Invoice) -> String {
         struct Doc: Encodable {
             let number: String; let date: Date; let dueDate: Date; let billTo: Client; let lines: [WorkLine]
-            let kmRate: Decimal; let notes: String; let kind: InvoiceKind; let relatedNumber: String
+            let kmRate: Decimal; let notes: String; let kind: InvoiceKind; let relatedNumber: String; let reference: String
         }
         let doc = Doc(number: i.number, date: i.date, dueDate: i.dueDate, billTo: i.billTo, lines: i.lines,
-                      kmRate: i.kmRate, notes: i.notes, kind: i.kind, relatedNumber: i.relatedNumber)
+                      kmRate: i.kmRate, notes: i.notes, kind: i.kind, relatedNumber: i.relatedNumber, reference: i.reference)
         return (try? String(data: encoder.encode(doc), encoding: .utf8)) ?? UUID().uuidString
     }
 
