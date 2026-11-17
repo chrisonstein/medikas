@@ -78,7 +78,7 @@ struct InvoicePage: View {
     @ViewBuilder private func measuringBody(_ part: Part) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             switch part {
-            case .firstHeader: if modern { modernHeader; modernAddressBlock } else { header; addressBlock; title }
+            case .firstHeader: header; addressBlock; title
             case .nextHeader: continuationHeader
             case .closing: if modern { modernTotals; modernClosing } else { totals; closing }
             case .footer: footer
@@ -91,9 +91,7 @@ struct InvoicePage: View {
 
     private var pageBody: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if isFirst {
-                if modern { modernHeader; modernAddressBlock } else { header; addressBlock; title }
-            } else { continuationHeader }
+            if isFirst { header; addressBlock; title } else { continuationHeader }
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in itemView(item) }
             if isLast {
                 if modern { modernTotals; modernClosing } else { totals; closing }
@@ -103,7 +101,7 @@ struct InvoicePage: View {
         }
         .padding(.horizontal, margin)
         .padding(.top, margin)
-        .padding(.bottom, 26 + brand.patternSpace)
+        .padding(.bottom, brand.patternTile == nil ? 26 : brand.patternSpace + 8)
         .frame(width: pageW, height: pageH, alignment: .topLeading)
         .background(Color.white)
         .overlay(alignment: .bottom) { patternStrip }
@@ -160,7 +158,7 @@ struct InvoicePage: View {
     }
 
     @ViewBuilder private var metaRows: some View {
-        if !modern { meta(invoice.isCredit ? "Creditnummer" : "Factuurnummer", invoice.number, bold: true) }
+        meta(invoice.isCredit ? "Creditnummer" : "Factuurnummer", invoice.number, bold: true)
         meta(modern ? "\(invoice.isCredit ? "Credit" : "Factuur")datum" : "Datum", modern ? invoice.date.short : invoice.date.long)
         if !invoice.isCredit { meta("Vervaldatum", modern ? invoice.dueDate.short : invoice.dueDate.long) }
         if !invoice.reference.isEmpty { meta("Kenmerk", invoice.reference, bold: modern) }
@@ -198,33 +196,6 @@ struct InvoicePage: View {
         }
     }
 
-    // MARK: Moderne kop
-
-    private var modernHeader: some View {
-        HStack(alignment: .top) {
-            logoOrName
-            Spacer()
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(titleText)
-                    .font(brand.heading(22, .semibold))
-                    .kerning(brand.style.titleUppercase ? 2.4 : 0)
-                Text("Nr. \(invoice.number)").foregroundStyle(soft).font(brand.body(10))
-            }
-        }
-        .padding(.bottom, 36)
-    }
-
-    private var modernAddressBlock: some View {
-        HStack(alignment: .top) {
-            billToBlock.font(brand.body(10))
-            Spacer()
-            Grid(alignment: .leading, horizontalSpacing: 30, verticalSpacing: 5) { metaRows }
-                .font(brand.body(9.5))
-                .frame(minWidth: 200)
-        }
-        .padding(.bottom, 26)
-    }
-
     private var continuationHeader: some View {
         HStack {
             if let logo = brand.logo {
@@ -250,7 +221,7 @@ struct InvoicePage: View {
         case .sectionTitle(let title):
             Group {
                 if modern {
-                    Text(title.uppercased()).font(brand.body(8, .semibold)).kerning(1.4).foregroundStyle(accent)
+                    Text(title.uppercased()).font(brand.body(8, .semibold)).kerning(1.4).foregroundStyle(ink)
                 } else {
                     Text(title).font(brand.heading(11, .semibold)).foregroundStyle(accent)
                 }
@@ -397,7 +368,7 @@ struct InvoicePage: View {
             Grid(alignment: .trailing, horizontalSpacing: 16, verticalSpacing: 6) {
                 subtotalRows.foregroundStyle(soft)
                 GridRow {
-                    Rectangle().fill(brand.line).frame(height: 2.5).gridCellColumns(2).padding(.top, 6)
+                    Rectangle().fill(brand.line).frame(height: 2).gridCellColumns(2).padding(.top, 6)
                 }
                 GridRow {
                     Text(invoice.isCredit ? "Totaal creditbedrag" : "Totaal").font(brand.heading(12, .semibold))
@@ -442,7 +413,7 @@ struct InvoicePage: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(invoice.isCredit ? "U hoeft voor deze creditfactuur niets te betalen." : paymentSentence)
                     .font(brand.body(9.5, .medium))
-                let ids = [settings.iban.isEmpty ? nil : "IBAN \(settings.iban)", settings.kvk.isEmpty ? nil : "KvK \(settings.kvk)"].compactMap { $0 }
+                let ids = [settings.iban.isEmpty ? nil : "IBAN \(settings.iban)\(settings.bic.isEmpty ? "" : " · BIC \(settings.bic)")"].compactMap { $0 }
                 if !ids.isEmpty { Text(ids.joined(separator: " · ")).foregroundStyle(soft) }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -471,8 +442,7 @@ struct InvoicePage: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     if modern {
-                        Text(contactItems.joined(separator: " · "))
-                        if !registrationItems.isEmpty { Text(registrationItems.joined(separator: " · ")) }
+                        Text(registrationItems.joined(separator: " · "))
                     } else {
                         Text(([settings.practiceName] + registrationItems).filter { !$0.isEmpty }.joined(separator: "   ·   "))
                     }
@@ -485,15 +455,9 @@ struct InvoicePage: View {
         }
     }
 
-    private var contactItems: [String] {
-        [settings.practiceName, settings.address,
-         [settings.postalCode, settings.city].filter { !$0.isEmpty }.joined(separator: " "),
-         settings.phone, settings.email, settings.website].filter { !$0.isEmpty }
-    }
-
     private var registrationItems: [String] {
         var items: [String] = []
-        if !settings.kvk.isEmpty && !modern { items.append("KvK \(settings.kvk)") }
+        if !settings.kvk.isEmpty { items.append("KvK \(settings.kvk)") }
         if !settings.agb.isEmpty { items.append("AGB \(settings.agb)") }
         if !settings.big.isEmpty { items.append("BIG \(settings.big)") }
         if !settings.vatNumber.isEmpty { items.append("Btw-id \(settings.vatNumber)") }
@@ -544,7 +508,7 @@ enum InvoicePDF {
             let view = InvoicePage(invoice: invoice, settings: settings, brand: brand, items: [], pageNumber: 1, pageCount: 2, part: part)
             return NSHostingView(rootView: view).fittingSize.height
         }
-        let fixed = pageH - margin - (26 + brand.patternSpace) - h(.footer) - 12   // 12 pt veiligheidsmarge
+        let fixed = pageH - margin - (brand.patternTile == nil ? 26 : brand.patternSpace + 8) - h(.footer) - 12   // 12 pt veiligheidsmarge
         return Layout(firstCap: fixed - h(.firstHeader), nextCap: fixed - h(.nextHeader), closing: h(.closing))
     }
 
