@@ -84,7 +84,7 @@ struct InvoicingSettingsTab: View {
                     Text("30 dagen").tag(30)
                 }
                 .pickerStyle(.segmented)
-                TextField("Voorvoegsel factuurnummer", text: s.invoicePrefix, prompt: Text("bijv. ASH-"))
+                TextField("Voorvoegsel factuurnummer", text: s.invoicePrefix, prompt: Text("bijv. F-"))
                 LabeledContent("Volgend factuurnummer") { Text(store.nextInvoiceNumber(for: Date())).monospacedDigit() }
                 TextField("Standaard omschrijving regel", text: s.defaultLineDescription, prompt: Text("bijv. Waarneming"))
             } header: {

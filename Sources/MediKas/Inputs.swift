@@ -59,6 +59,7 @@ struct InputField: View {
         HStack(spacing: 7) {
             if let icon { Image(systemName: icon).foregroundStyle(.secondary).font(.callout) }
             TextField(placeholder, text: $text, axis: axis)
+                .labelsHidden()
                 .textFieldStyle(.plain)
                 .lineLimit(axis == .vertical ? 2...6 : 1...1)
                 .focused($focused)
@@ -94,6 +95,7 @@ struct NumberField: View {
         HStack(spacing: 4) {
             if let prefix { Text(prefix).foregroundStyle(.secondary).accessibilityHidden(true) }
             TextField(placeholder, text: $text)
+                .labelsHidden()
                 .textFieldStyle(.plain)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
@@ -134,27 +136,32 @@ struct NumberField: View {
 
 // MARK: - Datum (typen met het toetsenbord, of kiezen in een kalender)
 
+/// Datumveld in dezelfde stijl als de andere velden. Typen als 01-10-2026 (ook 1-10-26, 1/10/2026 of 01102026),
+/// ↑/↓ = dag verder/terug (⇧ = week), kalenderknop voor kiezen met de muis.
 struct DateField: View {
     @Binding var date: Date
     var style: Style = .long
     @Local private var open = false
+    @Local private var text = ""
     @FocusState private var focused: Bool
 
     enum Style { case long, short }
 
     init(date: Binding<Date>, style: Style = .long) { _date = date; self.style = style }
 
+    private var invalid: Bool { !text.isEmpty && DateField.parse(text) == nil }
+
     var body: some View {
         HStack(spacing: 4) {
-            // Echt invoerveld: dag, maand en jaar typen; Tab of pijltjes om te wisselen
-            DatePicker("Datum", selection: Binding(get: { date }, set: { date = $0.startOfDay }),
-                       displayedComponents: .date)
+            TextField("dd-mm-jjjj", text: $text)
                 .labelsHidden()
-                .datePickerStyle(.field)
-                .environment(\.locale, nl)          // altijd dd-mm-jjjj
-                .environment(\.calendar, nlCalendar)
+                .textFieldStyle(.plain)
+                .monospacedDigit()
                 .focused($focused)
-            Spacer(minLength: 0)
+                .onSubmit { commit() }
+                .onKeyPress(.upArrow, phases: .down) { press in step(press.modifiers.contains(.shift) ? 7 : 1); return .handled }
+                .onKeyPress(.downArrow, phases: .down) { press in step(press.modifiers.contains(.shift) ? -7 : -1); return .handled }
+                .accessibilityValue(date.long)
             Button { open.toggle() } label: {
                 Image(systemName: "calendar").foregroundStyle(.secondary)
                     .frame(width: 22, height: 22).contentShape(Rectangle())
@@ -164,11 +171,11 @@ struct DateField: View {
             .accessibilityLabel("Kalender openen")
             .popover(isPresented: $open, arrowEdge: .bottom) {
                 VStack(spacing: 10) {
-                    DatePicker("", selection: Binding(get: { date }, set: { date = $0.startOfDay }), displayedComponents: .date)
+                    DatePicker("", selection: Binding(get: { date }, set: { set($0) }), displayedComponents: .date)
                         .datePickerStyle(.graphical)
                         .labelsHidden()
                     HStack {
-                        Button("Vandaag") { date = Date().startOfDay }
+                        Button("Vandaag") { set(Date()) }
                         Spacer()
                         Button("Klaar") { open = false }.keyboardShortcut(.defaultAction)
                     }
@@ -176,11 +183,46 @@ struct DateField: View {
                 }
                 .padding(14)
                 .environment(\.locale, nl)
+                .environment(\.calendar, nlCalendar)
             }
         }
-        .padding(.leading, -4)
-        .modifier(FieldSurface(focused: focused || open))
+        .modifier(FieldSurface(focused: focused || open, invalid: invalid))
         .help(date.long)
+        .onAppear { text = Fmt.short.string(from: date) }
+        .onChange(of: date) { _, new in if !focused || DateField.parse(text) != new.startOfDay { text = Fmt.short.string(from: new) } }
+        .onChange(of: text) { _, new in
+            // Direct overnemen zodra het een volledige, geldige datum is
+            if let d = DateField.parse(new), d != date.startOfDay { date = d }
+        }
+        .onChange(of: focused) { _, f in if !f { commit() } }
+    }
+
+    private func set(_ d: Date) {
+        date = d.startOfDay
+        text = Fmt.short.string(from: date)
+    }
+
+    private func step(_ days: Int) { set(date.adding(days: days)) }
+
+    private func commit() {
+        if let d = DateField.parse(text) { set(d) } else { text = Fmt.short.string(from: date) }
+    }
+
+    /// Leest d-m-jjjj, d/m/jj, d.m.jjjj en 8 of 6 cijfers zonder scheiding. Twee cijfers voor het jaar = 20xx.
+    static func parse(_ raw: String) -> Date? {
+        let s = raw.trimmingCharacters(in: .whitespaces)
+        var parts = s.split(whereSeparator: { "-/. ".contains($0) }).map(String.init)
+        if parts.count == 1, let only = parts.first, only.allSatisfy(\.isNumber) {
+            if only.count == 8 { parts = [String(only.prefix(2)), String(only.dropFirst(2).prefix(2)), String(only.suffix(4))] }
+            else if only.count == 6 { parts = [String(only.prefix(2)), String(only.dropFirst(2).prefix(2)), String(only.suffix(2))] }
+        }
+        guard parts.count == 3, let d = Int(parts[0]), let m = Int(parts[1]), var y = Int(parts[2]),
+              parts[2].count == 2 || parts[2].count == 4 else { return nil }
+        if parts[2].count == 2 { y += 2000 }
+        guard (1...12).contains(m), (1...31).contains(d), (1990...2100).contains(y),
+              let date = nlCalendar.date(from: DateComponents(year: y, month: m, day: d)),
+              nlCalendar.component(.day, from: date) == d else { return nil }   // bv. 31-02 bestaat niet
+        return date.startOfDay
     }
 }
 

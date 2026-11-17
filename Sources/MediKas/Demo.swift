@@ -14,6 +14,12 @@ enum Demo {
         if args.contains("--selftest-clicks") { selfTestClicks() }
         if args.contains("--selftest-keyboard") { selfTestKeyboard() }
         if args.contains("--selftest-filters") { selfTestFilters() }
+        if args.contains("--selftest-dates") {
+            for t in ["01-10-2026", "1-10-26", "1/10/2026", "01102026", "011026", "31-02-2026", "1-13-2026", "abc", "5.3.2027"] {
+                print("\(t) → \(DateField.parse(t).map { Fmt.short.string(from: $0) } ?? "ongeldig")")
+            }
+            exit(0)
+        }
         if args.contains("--selftest-archive-month") { selfTestArchiveMonth() }
         if args.contains("--dump-views") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -240,6 +246,8 @@ enum Demo {
         shot("statistieken-licht", StatsView(), size: CGSize(width: 1180, height: 1500), dark: false)
         shot("editor-licht", InvoiceEditorView(draft: store.data.invoices[3], isNew: false), size: CGSize(width: 1080, height: 1500), dark: false)
         shot("instellingen-weergave", AppearanceSettingsTab(), size: CGSize(width: 660, height: 640), dark: false)
+        shot("instellingen-facturatie", InvoicingSettingsTab(), size: CGSize(width: 660, height: 640), dark: false)
+        shot("instellingen-facturatie-donker", InvoicingSettingsTab(), size: CGSize(width: 660, height: 640), dark: true)
         do {
             let env = ProcessInfo.processInfo.environment
             if let path = env["MEDIKAS_DEMO_STYLE"], let d = try? Data(contentsOf: URL(fileURLWithPath: path)),
