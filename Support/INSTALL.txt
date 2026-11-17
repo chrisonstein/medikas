@@ -1,0 +1,28 @@
+MediKas — installeren
+=====================
+
+Vereist: macOS 14 (Sonoma) of nieuwer. Werkt op Macs met Apple silicon en Intel.
+
+1. Sleep "MediKas" naar de map "Programma's" in dit venster.
+   (Bijwerken? Sluit MediKas eerst af.)
+
+2. Open MediKas één keer: dubbelklik op MediKas in Programma's.
+   macOS meldt dat het de app "niet kan verifiëren", omdat hij niet uit de App Store komt
+   en niet door Apple is genotariseerd. Zo sta je hem toe:
+     • Open Systeeminstellingen → Privacy en beveiliging.
+     • Scrol omlaag naar "MediKas is geblokkeerd…" en klik op "Open toch".
+     • Bevestig met je wachtwoord of Touch ID.
+   Dit hoeft maar één keer.
+
+   Liever via Terminal? Dit doet hetzelfde:
+     xattr -dr com.apple.quarantine /Applications/MediKas.app
+
+3. Kies in MediKas → Instellingen (⌘,):
+     • Bedrijf en Facturatie: je gegevens en tarieven.
+     • Opslag: waar je gegevens staan (bijv. iCloud Drive) en een back-uplocatie.
+   Je gegevens blijven op je eigen Mac en in je eigen cloudmap.
+
+Updates
+-------
+MediKas zoekt elke dag naar een nieuwe versie en vraagt of je die wilt installeren.
+Zelf zoeken: MediKas → Zoek naar updates…
