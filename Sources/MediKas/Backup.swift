@@ -19,6 +19,7 @@ extension Store {
         get { UserDefaults.standard.string(forKey: Store.destKey).map { URL(fileURLWithPath: $0, isDirectory: true) } }
         set {
             objectWillChange.send()
+            guard !Store.isTestMode else { return }
             if let newValue { UserDefaults.standard.set(newValue.path, forKey: Store.destKey) }
             else { UserDefaults.standard.removeObject(forKey: Store.destKey) }
         }
@@ -114,7 +115,7 @@ extension Store {
                     self.objectWillChange.send()
                     switch result {
                     case .success:
-                        UserDefaults.standard.set(Date(), forKey: Store.lastKey)
+                        if !Store.isTestMode { UserDefaults.standard.set(Date(), forKey: Store.lastKey) }
                         let note = offline > 0 ? "Let op: \(offline) bestand(en) stonden alleen in de cloud en zitten niet in deze back-up. Zet de map in de Finder op ‘Bewaar gedownload’." : nil
                         if let note { UserDefaults.standard.set(note, forKey: Store.problemKey) }
                         else { UserDefaults.standard.removeObject(forKey: Store.problemKey) }

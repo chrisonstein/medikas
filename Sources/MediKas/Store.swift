@@ -62,6 +62,8 @@ final class Store: ObservableObject {
     static let defaultFolder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("MediKas", isDirectory: true)
     private static let folderKey = "dataFolderPath"
+    /// Testmodus (MEDIKAS_DATA_DIR): dan worden de echte instellingen van de gebruiker nooit gewijzigd.
+    static let isTestMode = ProcessInfo.processInfo.environment["MEDIKAS_DATA_DIR"] != nil
 
     private var saveWork: DispatchWorkItem?
     private var isLoading = false
@@ -195,8 +197,9 @@ final class Store: ObservableObject {
         unavailableReason = nil
         try? fm.createDirectory(at: backupFolder, withIntermediateDirectories: true)
         data = loaded
-        logo = NSImage(contentsOf: logoURL)
-        patternImage = NSImage(contentsOf: patternURL)
+        // Bestaande logo's en patronen met lege randen in één keer bijsnijden
+        logo = Store.loadTrimmed(logoURL)
+        patternImage = Store.loadTrimmed(patternURL)
         BrandFonts.register(customFontFiles)
         lastModDate = Store.modDate(dataURL)
         makeDailyBackup()
@@ -319,7 +322,9 @@ final class Store: ObservableObject {
             }
         }
 
-        if target.path == Store.defaultFolder.standardizedFileURL.path {
+        if Store.isTestMode {
+            // niets opslaan: echte instellingen blijven onaangeroerd
+        } else if target.path == Store.defaultFolder.standardizedFileURL.path {
             UserDefaults.standard.removeObject(forKey: Store.folderKey)
         } else {
             UserDefaults.standard.set(target.path, forKey: Store.folderKey)
@@ -498,12 +503,46 @@ final class Store: ObservableObject {
         return rep.representation(using: .png, properties: [:])
     }
 
+    /// Snijdt lege (transparante of witte) randen weg, zodat de ingestelde hoogte de hoogte van het logo zelf is.
+    /// Laadt een afbeelding en snijdt lege randen weg; schrijft de bijgesneden versie terug als er iets af ging.
+    static func loadTrimmed(_ url: URL) -> NSImage? {
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        let t = trimmed(image)
+        if t !== image, !isTestMode, let png = highResPNG(t) { try? png.write(to: url, options: .atomic); return NSImage(data: png) ?? t }
+        return t
+    }
+
+    static func trimmed(_ image: NSImage) -> NSImage {
+        guard let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else { return image }
+        let w = rep.pixelsWide, h = rep.pixelsHigh
+        guard w > 2, h > 2 else { return image }
+        let step = max(1, min(w, h) / 600)
+        func isEmpty(_ x: Int, _ y: Int) -> Bool {
+            guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return true }
+            if c.alphaComponent < 0.03 { return true }
+            return c.redComponent > 0.98 && c.greenComponent > 0.98 && c.blueComponent > 0.98   // witte achtergrond
+        }
+        var minX = w, minY = h, maxX = -1, maxY = -1
+        for y in stride(from: 0, to: h, by: step) { for x in stride(from: 0, to: w, by: step) where !isEmpty(x, y) {
+            minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+        }}
+        guard maxX >= minX, maxY >= minY else { return image }
+        // kleine marge van 1% zodat niets wordt afgesneden
+        let pad = max(step, Int(Double(max(w, h)) * 0.01))
+        minX = max(0, minX - pad); minY = max(0, minY - pad); maxX = min(w - 1, maxX + pad); maxY = min(h - 1, maxY + pad)
+        let cw = maxX - minX + 1, ch = maxY - minY + 1
+        if Double(cw * ch) > Double(w * h) * 0.97 { return image }   // nauwelijks rand: laten zoals het is
+        guard let cg = rep.cgImage?.cropping(to: CGRect(x: minX, y: minY, width: cw, height: ch)) else { return image }
+        let scale = image.size.width / CGFloat(w)
+        return NSImage(cgImage: cg, size: NSSize(width: CGFloat(cw) * scale, height: CGFloat(ch) * scale))
+    }
+
     private func pickImage(_ message: String) -> NSImage? {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = Store.imageTypes
         panel.message = message
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
-        return NSImage(contentsOf: url)
+        return NSImage(contentsOf: url).map(Store.trimmed)
     }
 
     func chooseLogo() {

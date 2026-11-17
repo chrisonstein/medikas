@@ -39,6 +39,7 @@ enum Demo {
 
         var s = BusinessSettings()
         s.ownerName = "Dr. Voorbeeld"
+        s.tradeName = "Voorbeeldpraktijk"
         s.address = "Voorbeeldstraat 1"
         s.postalCode = "1234 AB"
         s.city = "Ergens"
@@ -83,8 +84,8 @@ enum Demo {
         if let fonts = env["MEDIKAS_DEMO_FONTS"] {
             BrandFonts.register(((try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: fonts), includingPropertiesForKeys: nil)) ?? []))
         }
-        let logo = env["MEDIKAS_DEMO_LOGO"].flatMap { NSImage(contentsOfFile: $0) }
-        let pattern = env["MEDIKAS_DEMO_PATTERN"].flatMap { NSImage(contentsOfFile: $0) }
+        let logo = env["MEDIKAS_DEMO_LOGO"].flatMap { NSImage(contentsOfFile: $0) }.map(Store.trimmed)
+        let pattern = env["MEDIKAS_DEMO_PATTERN"].flatMap { NSImage(contentsOfFile: $0) }.map(Store.trimmed)
         inv.reference = env["MEDIKAS_DEMO_STYLE"] == nil ? "" : "Voorbeeld"
         if let data = InvoicePDF.data(for: inv, settings: s, brand: Brand(style: s.style, logo: logo, patternImage: pattern)) {
             try? data.write(to: URL(fileURLWithPath: args[i + 1]))
@@ -147,7 +148,6 @@ enum Demo {
         print("nieuwe map: \(store.folder.path), facturen: \(store.data.invoices.count) (verwacht \(count)), onbereikbaar: \(store.unavailableReason ?? "nee")")
         let pdfs = fm.enumerator(atPath: target.appendingPathComponent("Facturen").path)?.allObjects.compactMap { $0 as? String }.filter { $0.hasSuffix(".pdf") } ?? []
         print("PDF's in nieuwe map: \(pdfs.count), backups: \((try? fm.contentsOfDirectory(atPath: target.appendingPathComponent("Backups").path))?.count ?? 0)")
-        UserDefaults.standard.removeObject(forKey: "dataFolderPath")
         exit(0)
     }
 

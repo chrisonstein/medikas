@@ -47,7 +47,7 @@ struct BrandSettingsTab: View {
     // MARK: Logo
 
     private var logoSection: some View {
-        Section("Logo") {
+        Section {
             HStack {
                 if let logo = store.logo {
                     Image(nsImage: logo).resizable().interpolation(.high).scaledToFit()
@@ -67,6 +67,11 @@ struct BrandSettingsTab: View {
                     }
                 }
             }
+        } header: {
+            Text("Logo")
+        } footer: {
+            Text("Lege randen rond het logo worden automatisch weggesneden, zodat de hoogte klopt. Een heel breed logo wordt maximaal 300 pt breed.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 

@@ -135,7 +135,7 @@ struct InvoicePage: View {
     @ViewBuilder private var logoOrName: some View {
         if let logo = brand.logo {
             Image(nsImage: logo).resizable().interpolation(.high).scaledToFit()
-                .frame(maxWidth: 240, maxHeight: CGFloat(brand.style.logoHeight), alignment: .leading)
+                .frame(maxWidth: 300, maxHeight: CGFloat(brand.style.logoHeight), alignment: .leading)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 Text(settings.displayName).font(brand.heading(19, .bold)).foregroundStyle(accent)
@@ -441,11 +441,9 @@ struct InvoicePage: View {
             Rectangle().fill(modern ? AnyShapeStyle(brand.line) : AnyShapeStyle(rule)).frame(height: modern ? 2 : 0.7)
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if modern {
-                        Text(registrationItems.joined(separator: " · "))
-                    } else {
-                        Text(([settings.practiceName] + registrationItems).filter { !$0.isEmpty }.joined(separator: "   ·   "))
-                    }
+                    // Links eerst de handelsnaam, dan de registratiegegevens en IBAN
+                    Text(([footerName] + registrationItems).filter { !$0.isEmpty }
+                            .joined(separator: modern ? " · " : "   ·   "))
                 }
                 Spacer()
                 if pageCount > 1 { Text("Pagina \(pageNumber) van \(pageCount)") }
@@ -455,13 +453,15 @@ struct InvoicePage: View {
         }
     }
 
+    private var footerName: String { settings.tradeName.isEmpty ? settings.practiceName : settings.tradeName }
+
     private var registrationItems: [String] {
         var items: [String] = []
         if !settings.kvk.isEmpty { items.append("KvK \(settings.kvk)") }
         if !settings.agb.isEmpty { items.append("AGB \(settings.agb)") }
         if !settings.big.isEmpty { items.append("BIG \(settings.big)") }
         if !settings.vatNumber.isEmpty { items.append("Btw-id \(settings.vatNumber)") }
-        if !settings.iban.isEmpty && !modern { items.append("IBAN \(settings.iban)\(settings.bic.isEmpty ? "" : " (\(settings.bic))")") }
+        if !settings.iban.isEmpty { items.append("IBAN \(settings.iban)\(settings.bic.isEmpty ? "" : " (\(settings.bic))")") }
         return items
     }
 
