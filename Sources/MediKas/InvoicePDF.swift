@@ -28,7 +28,7 @@ enum PDFItem: Hashable {
 
     var height: CGFloat {
         switch self {
-        case .sectionTitle: 24
+        case .sectionTitle: 32
         case .workHeader, .travelHeader: 22
         case .work, .travel: rowH
         case .workTotal, .travelTotal: 22
@@ -131,10 +131,18 @@ struct InvoicePage: View {
         .padding(.bottom, 26)
     }
 
+    /// Vaste maat: de ingestelde hoogte, met de breedte uit de verhouding (maximaal 300 pt breed).
+    private func logoSize(_ logo: NSImage) -> CGSize {
+        let ratio = logo.size.height > 0 ? logo.size.width / logo.size.height : 1
+        var h = CGFloat(brand.style.logoHeight)
+        if h * ratio > 300 { h = 300 / ratio }
+        return CGSize(width: h * ratio, height: h)
+    }
+
     @ViewBuilder private var logoOrName: some View {
         if let logo = brand.logo {
             Image(nsImage: logo).resizable().interpolation(.high).scaledToFit()
-                .frame(maxWidth: 300, maxHeight: CGFloat(brand.style.logoHeight), alignment: .leading)
+                .frame(width: logoSize(logo).width, height: logoSize(logo).height)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 Text(settings.displayName).font(brand.heading(19, .bold)).foregroundStyle(accent)
@@ -222,6 +230,7 @@ struct InvoicePage: View {
                 Text(title.uppercased()).font(brand.body(8, .semibold)).kerning(1.4).foregroundStyle(ink)
             }
             .frame(height: 24, alignment: .bottomLeading)
+            .padding(.bottom, 8)   // ruimte tussen titel en tabel
         case .gap:
             Color.clear.frame(height: 18)
 
@@ -290,7 +299,6 @@ struct InvoicePage: View {
         HStack(spacing: 0, content: content)
             .fontWeight(.semibold)
             .frame(height: 22)
-            .overlay(alignment: .bottom) { Rectangle().fill(rule).frame(height: 1) }
             .monospacedDigit()
     }
 
