@@ -374,7 +374,7 @@ struct InvoicePage: View {
 
     private var paymentSentence: String {
         settings.paymentText
-            .replacingOccurrences(of: "{TERMIJN}", with: "\(settings.paymentTermDays)")
+            .replacingOccurrences(of: "{TERMIJN}", with: "\(max(0, nlCalendar.dateComponents([.day], from: invoice.date, to: invoice.dueDate).day ?? settings.paymentTermDays))")
             .replacingOccurrences(of: "{IBAN}", with: settings.iban.isEmpty ? "ons rekeningnummer" : settings.iban)
             .replacingOccurrences(of: "{NAAM}", with: settings.holder)
             .replacingOccurrences(of: "{FACTUUR}", with: invoice.number)

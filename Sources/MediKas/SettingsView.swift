@@ -77,7 +77,13 @@ struct InvoicingSettingsTab: View {
             Section {
                 LabeledContent("Standaard uurtarief") { NumberField(value: s.defaultHourlyRate, prefix: "€", suffix: "per uur").frame(width: 170) }
                 LabeledContent("Standaard km-vergoeding") { NumberField(value: s.defaultKmRate, prefix: "€", suffix: "per km", digits: 3).frame(width: 170) }
-                Stepper("Betaaltermijn: \(store.data.settings.paymentTermDays) dagen", value: s.paymentTermDays, in: 0...90, step: 7)
+                Picker("Betaaltermijn", selection: Binding(
+                    get: { store.data.settings.paymentTermDays <= 21 ? 14 : 30 },
+                    set: { store.data.settings.paymentTermDays = $0 })) {
+                    Text("14 dagen").tag(14)
+                    Text("30 dagen").tag(30)
+                }
+                .pickerStyle(.segmented)
                 TextField("Voorvoegsel factuurnummer", text: s.invoicePrefix, prompt: Text("bijv. ASH-"))
                 LabeledContent("Volgend factuurnummer") { Text(store.nextInvoiceNumber(for: Date())).monospacedDigit() }
                 TextField("Standaard omschrijving regel", text: s.defaultLineDescription, prompt: Text("bijv. Waarneming"))
