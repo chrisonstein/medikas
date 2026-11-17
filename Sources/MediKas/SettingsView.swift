@@ -141,6 +141,9 @@ struct StorageSettingsTab: View {
 
             Section {
                 Toggle("Bewaar automatisch een PDF van elke verstuurde factuur", isOn: s.archivePDFs)
+                Toggle("Per maand indelen", isOn: Binding(get: { store.data.settings.archiveByMonth },
+                                                          set: { store.setArchiveByMonth($0) }))
+                    .help("Bijv. Facturen/2026/03 maart/. Bestaande PDF’s worden meeverplaatst.")
                 HStack {
                     Button("Open factuurarchief") { store.openArchive() }
                     Button("Ontbrekende PDF’s archiveren") { store.archiveMissing() }
@@ -149,7 +152,7 @@ struct StorageSettingsTab: View {
             } header: {
                 Text("Factuurarchief (bewaarplicht 7 jaar)")
             } footer: {
-                Text("Elke verstuurde factuur wordt als PDF bewaard in Facturen/<jaar>/ in de gegevensmap, precies zoals hij is verstuurd. Verwijderde facturen gaan naar Facturen/Verwijderd; die PDF’s blijven dus bewaard.")
+                Text("Elke verstuurde factuur wordt als PDF bewaard in Facturen/<jaar>/ (of per maand: Facturen/<jaar>/<nn maand>/) in de gegevensmap, precies zoals hij is verstuurd. De factuurdatum bepaalt de map. Verwijderde facturen gaan naar Facturen/Verwijderd; die PDF’s blijven dus bewaard.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

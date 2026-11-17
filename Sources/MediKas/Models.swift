@@ -40,6 +40,8 @@ struct BusinessSettings: Codable, Equatable {
     var closingText = ""
     /// Bewaar automatisch een PDF van elke verstuurde factuur in de gegevensmap.
     var archivePDFs = true
+    /// Archief per jaar én per maand indelen (Facturen/2026/03 maart/).
+    var archiveByMonth = false
     /// Huisstijl van de factuur (sjabloon, kleuren, lettertypen, patroon).
     var style = InvoiceStyle()
 
@@ -74,6 +76,7 @@ struct BusinessSettings: Codable, Equatable {
         paymentText = c.value(.paymentText, d.paymentText)
         closingText = c.value(.closingText, d.closingText)
         archivePDFs = c.value(.archivePDFs, d.archivePDFs)
+        archiveByMonth = c.value(.archiveByMonth, d.archiveByMonth)
         style = c.value(.style, d.style)
     }
 

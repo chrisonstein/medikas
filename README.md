@@ -90,7 +90,7 @@ data.json            alle gegevens
 logo.png             logo
 Huisstijl/           patroon en eigen lettertypen
 Backups/             dagelijkse back-ups van data.json
-Facturen/2026/       PDF van elke verstuurde factuur
+Facturen/2026/       PDF van elke verstuurde factuur (optioneel per maand: Facturen/2026/03 maart/)
 Facturen/Verwijderd/ PDF's van verwijderde facturen
 ```
 

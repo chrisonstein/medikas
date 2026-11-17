@@ -435,7 +435,7 @@ final class Store: ObservableObject {
               let i = data.invoices.firstIndex(where: { $0.id == id }), data.invoices[i].isSent else { return }
         let inv = data.invoices[i]
         guard let pdf = InvoicePDF.data(for: inv, settings: data.settings, brand: brand) else { return }
-        let rel = "Facturen/\(inv.date.year)/\(InvoicePDF.fileName(inv))"
+        let rel = archivePath(for: inv)
         let url = folder.appendingPathComponent(rel)
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -454,6 +454,45 @@ final class Store: ObservableObject {
         } catch {
             alert = "PDF archiveren mislukt: \(error.localizedDescription)"
         }
+    }
+
+    /// Pad in het archief: Facturen/<jaar>/[<nn maand>/]<bestandsnaam>, op factuurdatum.
+    func archivePath(for inv: Invoice, byMonth: Bool? = nil) -> String {
+        var path = "Facturen/\(inv.date.year)/"
+        if byMonth ?? data.settings.archiveByMonth {
+            path += String(format: "%02d ", inv.date.month) + Fmt.month.string(from: inv.date) + "/"
+        }
+        return path + InvoicePDF.fileName(inv)
+    }
+
+    /// Zet de archiefindeling om (per jaar ↔ per jaar en maand) en verplaatst bestaande PDF's mee.
+    func setArchiveByMonth(_ on: Bool) {
+        guard on != data.settings.archiveByMonth else { return }
+        data.settings.archiveByMonth = on
+        guard unavailableReason == nil else { return }
+        let fm = FileManager.default
+        var moved = 0
+        for i in data.invoices.indices {
+            guard let old = data.invoices[i].archivedFile else { continue }
+            let new = archivePath(for: data.invoices[i], byMonth: on)
+            guard new != old else { continue }
+            let from = folder.appendingPathComponent(old), to = folder.appendingPathComponent(new)
+            guard fm.fileExists(atPath: from.path) else { continue }
+            try? fm.createDirectory(at: to.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if fm.fileExists(atPath: to.path) { try? fm.removeItem(at: to) }
+            if (try? fm.moveItem(at: from, to: to)) != nil {
+                data.invoices[i].archivedFile = new
+                moved += 1
+                // Lege maandmap opruimen
+                let dir = from.deletingLastPathComponent()
+                if dir.lastPathComponent.first?.isNumber == true, dir.deletingLastPathComponent().lastPathComponent.count == 4,
+                   ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? []).filter({ !$0.hasPrefix(".") }).isEmpty {
+                    try? fm.removeItem(at: dir)
+                }
+            }
+        }
+        show(on ? "Archief per maand ingedeeld\(moved > 0 ? " (\(moved) PDF’s verplaatst)" : "")."
+                : "Archief per jaar ingedeeld\(moved > 0 ? " (\(moved) PDF’s verplaatst)" : "").")
     }
 
     func archivedURL(_ invoice: Invoice) -> URL? {

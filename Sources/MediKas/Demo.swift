@@ -14,6 +14,7 @@ enum Demo {
         if args.contains("--selftest-clicks") { selfTestClicks() }
         if args.contains("--selftest-keyboard") { selfTestKeyboard() }
         if args.contains("--selftest-filters") { selfTestFilters() }
+        if args.contains("--selftest-archive-month") { selfTestArchiveMonth() }
         if args.contains("--dump-views") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                 guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 600 }),
@@ -482,6 +483,25 @@ enum Demo {
         f = InvoiceFilter(year: nil, search: inv[2].number)
         print("zoeken op \(inv[2].number): \(count(f)) (verwacht 1)")
         print("periodText: '\(InvoiceFilter(year: y, month: 3).periodText)', '\(InvoiceFilter(year: nil).periodText)'")
+        exit(0)
+    }
+
+    /// Test: archief per maand indelen en terug, PDF's verplaatsen.
+    @MainActor static func selfTestArchiveMonth() {
+        let store = Store(loadAsync: false)
+        store.data = sampleData(); store.saveNow(); store.archiveMissing()
+        func listing() -> [String] {
+            (FileManager.default.enumerator(atPath: store.archiveFolder.path)?.allObjects as? [String] ?? []).filter { $0.hasSuffix(".pdf") }.sorted()
+        }
+        store.setArchiveByMonth(true)
+        let monthly = listing()
+        print("per maand: \(monthly.count) PDF's, bv. \(monthly.first ?? "-")")
+        print("alle links kloppen: \(store.data.invoices.filter(\.isSent).allSatisfy { store.archivedURL($0) != nil })")
+        var inv = store.data.invoices.first { $0.isSent }!; inv.lines[0].hours += 1; store.save(inv)
+        print("na wijziging nog in maandmap: \(store.invoice(inv.id)!.archivedFile ?? "-")")
+        store.setArchiveByMonth(false)
+        let yearly = listing()
+        print("terug per jaar: \(yearly.count) PDF's, bv. \(yearly.first ?? "-"), lege maandmappen over: \((FileManager.default.enumerator(atPath: store.archiveFolder.path)?.allObjects as? [String] ?? []).filter { $0.contains(" ") && !$0.hasSuffix(".pdf") }.count)")
         exit(0)
     }
 }
