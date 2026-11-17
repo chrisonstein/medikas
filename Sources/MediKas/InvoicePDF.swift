@@ -182,7 +182,7 @@ struct InvoicePage: View {
     }
 
     private var title: some View {
-        Text(titleText).font(brand.heading(22, .bold)).foregroundStyle(accent)
+        Text(titleText).font(brand.heading(22, .bold)).foregroundStyle(modern ? ink : accent)
             .padding(.bottom, 12)
     }
 
