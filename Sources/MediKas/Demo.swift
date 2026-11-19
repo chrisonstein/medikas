@@ -41,6 +41,7 @@ enum Demo {
             }
         }
         if let i = args.firstIndex(of: "--selftest-correction"), i + 1 < args.count { selfTestCorrection(pdfDir: args[i + 1]) }
+        if args.contains("--selftest-import") { selfTestImport() }
         guard let i = args.firstIndex(of: "--demo-pdf"), i + 1 < args.count else { return }
         let count = (i + 2 < args.count ? Int(args[i + 2]) : nil) ?? 12
 
@@ -268,6 +269,17 @@ enum Demo {
             store.correct(open, reissue: true)
             shot("editor-gecrediteerd", InvoiceEditorView(draft: store.invoice(open.id)!, isNew: false), size: CGSize(width: 1080, height: 700), dark: false)
         }
+        // Importeren: een bestaande PDF (hier zelf gemaakt) met één werkdag te weinig → waarschuwing
+        do {
+            let src = FileManager.default.temporaryDirectory.appendingPathComponent("Factuur 2024-042.pdf")
+            var foreign = store.makeInvoice(for: store.activeClients.first)
+            foreign.number = "2024-042"
+            foreign.lines = (0..<3).map { d in var l = WorkLine(); l.date = Date().adding(days: -d); l.hours = 9; l.hourlyRate = 95; l.commuteKm = 40; return l }
+            try? InvoicePDF.data(for: foreign, store: store)?.write(to: src)
+            var imp = store.makeImportedInvoice(for: store.activeClients.first, pdf: src)
+            imp.lines = Array(foreign.lines.prefix(2))
+            shot("editor-import", InvoiceEditorView(draft: imp, isNew: true), size: CGSize(width: 1080, height: 1100), dark: false)
+        }
         theme.accentChoice = .blauw
         shot("overzicht-blauw", DashboardView(), size: big, dark: false)
         theme.accentChoice = original
@@ -368,6 +380,101 @@ enum Demo {
             }
             }
         }
+    }
+
+    /// Test van importeren: PDF uitlezen, originele PDF in het archief, meetellen in cijfers en betalingen.
+    @MainActor static func selfTestImport() {
+        setvbuf(stdout, nil, _IONBF, 0)
+        var failures = 0
+        func check(_ ok: Bool, _ what: String) { print((ok ? "OK   " : "FOUT ") + what); if !ok { failures += 1 } }
+
+        // Tekst zoals in een zelfgemaakte (Word-)factuur
+        let word = ImportedPDFInfo.parse("""
+        Factuur
+        Factuurnr.: 2025-017
+        Datum: 3 maart 2025
+        Uiterste betaaldatum: 02-04-2025
+        Subtotaal € 1.100,00
+        Reiskosten € 134,40
+        Totaal te betalen: € 1.234,40
+        """)
+        check(word.number == "2025-017", "nummer uit tekst: \(word.number ?? "-")")
+        check(word.date?.short == "03-03-2025", "datum uit tekst: \(word.date?.short ?? "-")")
+        check(word.dueDate?.short == "02-04-2025", "vervaldatum uit tekst: \(word.dueDate?.short ?? "-")")
+        check(word.total == Decimal(string: "1234.40"), "totaal uit tekst: \(word.total?.euro ?? "-")")
+
+        let store = Store(loadAsync: false)
+        store.data = sampleData()
+        store.saveNow()
+        let client = store.activeClients[0]
+
+        // Een 'buitenstaande' PDF maken: een factuur met een eigen nummer, buiten de store om
+        var foreign = store.makeInvoice(for: client)
+        foreign.number = "2024-042"
+        foreign.date = Fmt.short.date(from: "15-11-2024")!
+        foreign.dueDate = foreign.date.adding(days: 14)
+        foreign.lines = (0..<3).map { d in
+            var l = WorkLine(); l.date = foreign.date.adding(days: -d - 3); l.hours = 9; l.hourlyRate = 95; l.commuteKm = 40; return l
+        }
+        let src = FileManager.default.temporaryDirectory.appendingPathComponent("medikas-import-test.pdf")
+        let srcData = InvoicePDF.data(for: foreign, store: store)!
+        try! srcData.write(to: src)
+
+        let info = ImportedPDFInfo.read(src)
+        check(info.number == "2024-042", "nummer uit PDF: \(info.number ?? "-")")
+        check(info.date == foreign.date, "datum uit PDF: \(info.date?.short ?? "-")")
+        check(info.total == foreign.total, "totaal uit PDF: \(info.total?.euro ?? "-") (verwacht \(foreign.total.euro))")
+
+        let numberBefore = store.nextInvoiceNumber(for: Date())
+        var imp = store.makeImportedInvoice(for: client, pdf: src)
+        check(imp.isImported && imp.isSent && imp.number == "2024-042", "import-concept: verstuurd, nummer ingevuld")
+        imp.lines = foreign.lines.map { var l = $0; l.id = UUID(); return l }
+        store.save(imp)
+        let saved = store.invoice(imp.id)!
+        let archived = store.archivedURL(saved)
+        check(archived != nil && (try? Data(contentsOf: archived!)) == srcData, "originele PDF ongewijzigd in archief: \(saved.archivedFile ?? "-")")
+        check(store.importSources[imp.id] == nil, "gekozen PDF opgeruimd na bewaren")
+        check(InvoicePDF.data(for: saved, store: store) == srcData, "Open/Bewaar/Mail gebruiken de originele PDF")
+        check(saved.status() == .overdue, "status: \(saved.status().rawValue)")
+        check(store.nextInvoiceNumber(for: Date()) == numberBefore, "nummering dit jaar loopt gewoon door: \(numberBefore)")
+        check(store.nextInvoiceNumber(for: foreign.date) == "2024-043", "nummering in 2024 gaat verder na import: \(store.nextInvoiceNumber(for: foreign.date))")
+
+        // Telt mee in statistieken
+        let row = Analytics.periods(store.sentInvoices, grouping: .jaar, basis: .factuurdatum, year: 2024).first { $0.key.year == 2024 }
+        check(row?.invoiced == foreign.total, "statistiek 2024 gefactureerd: \(row?.invoiced.euro ?? "-")")
+        check(row?.hours == 27, "statistiek 2024 uren: \(row?.hours.fmt() ?? "-")")
+
+        // Betaling registreren → betaald, en ontvangst telt mee
+        store.markPaid(saved, on: Fmt.short.date(from: "10-12-2024")!)
+        let paid = store.invoice(imp.id)!
+        check(paid.status() == .paid, "na betaling: \(paid.status().rawValue)")
+        check((try? Data(contentsOf: store.archivedURL(paid)!)) == srcData, "PDF ongewijzigd na betaling")
+        let row2 = Analytics.periods(store.sentInvoices, grouping: .jaar, basis: .factuurdatum, year: 2024).first { $0.key.year == 2024 }
+        check(row2?.received == foreign.total, "ontvangen 2024: \(row2?.received.euro ?? "-")")
+
+        // Registratie corrigeren (nummer) → PDF verhuist mee, geen 'aangepast na verzending'
+        var fix = paid; fix.number = "2024-042b"
+        store.save(fix)
+        let moved = store.invoice(imp.id)!
+        check(moved.archivedFile?.contains("2024-042b") == true && store.archivedURL(moved) != nil, "PDF verplaatst: \(moved.archivedFile ?? "-")")
+        check(moved.editedAfterSending.isEmpty, "geen 'aangepast na verzending' bij import")
+
+        // 'Ontbrekende archiveren' overschrijft de originele PDF niet
+        store.archiveMissing()
+        check((try? Data(contentsOf: store.archivedURL(moved)!)) == srcData, "archiveMissing laat origineel staan")
+
+        // Archief per maand → PDF verhuist mee
+        store.setArchiveByMonth(true)
+        let monthly = store.invoice(imp.id)!
+        check(monthly.archivedFile?.contains("/11 november/") == true && store.archivedURL(monthly) != nil, "per maand: \(monthly.archivedFile ?? "-")")
+
+        // Corrigeren met creditfactuur werkt ook voor een geïmporteerde factuur
+        let repl = store.correct(monthly, reissue: true)
+        let credit = store.invoice(store.invoice(imp.id)!.creditedByID)
+        check(credit != nil && !credit!.isImported && repl?.isImported == false, "creditfactuur + nieuwe factuur zijn gewone MediKas-facturen")
+
+        print(failures == 0 ? "ALLES OK" : "\(failures) FOUT(EN)")
+        exit(failures == 0 ? 0 : 1)
     }
 
     /// Test van corrigeren: creditfactuur + nieuwe factuur, koppelingen, statussen, cijfers, verwijderen, versies.

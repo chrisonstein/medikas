@@ -496,7 +496,11 @@ enum InvoicePDF {
     }
 
     static func data(for invoice: Invoice, store: Store) -> Data? {
-        data(for: invoice, settings: store.data.settings, brand: store.brand)
+        // Geïmporteerde factuur: altijd de originele PDF (nog niet bewaard: de gekozen PDF).
+        if invoice.isImported {
+            if let url = store.importSources[invoice.id]?.url ?? store.archivedURL(invoice) { return try? Data(contentsOf: url) }
+        }
+        return data(for: invoice, settings: store.data.settings, brand: store.brand)
     }
 
     static func data(for invoice: Invoice, settings: BusinessSettings, logo: NSImage?) -> Data? {

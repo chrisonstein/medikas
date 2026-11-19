@@ -27,6 +27,12 @@ Boekhouding voor zzp-artsen, zoals een waarnemend huisarts: facturen voor waarne
   - een **patroon** onderaan de pagina (herhaald beeldmerk, instelbare dekking en hoogte; nooit onder tekst)
   - logo, patroon en lettertypen staan in de map `Huisstijl/` in je gegevensmap, dus ze reizen mee naar een andere Mac
   - per factuur een optioneel **kenmerk**
+- **Bestaande facturen importeren** (facturen die je buiten MediKas hebt gemaakt): via *Importeer…* op een praktijkpagina, het menu van een praktijk of Archief → *Importeer bestaande factuur…* (⇧⌘I).
+  - Je kiest de originele PDF. Factuurnummer, datum, vervaldatum en totaal worden zo goed mogelijk uit de PDF gelezen; controleer ze altijd.
+  - Vul de werkdagen in zoals op de factuur. Wijkt het totaal af van de PDF, dan zie je meteen het verschil.
+  - De originele PDF gaat ongewijzigd naar het archief (`Facturen/<jaar>/`). MediKas maakt voor zo'n factuur nooit een eigen PDF; openen, bewaren en mailen gebruiken het origineel.
+  - Een geïmporteerde factuur telt als verstuurd en loopt overal mee: statistieken, betalingen, openstaand, te laat, praktijkcijfers en de nummering (na `2025-017` stelt MediKas `2025-018` voor). In de lijsten staat een klein importicoon bij het nummer.
+  - Je kunt de gegevens later gewoon corrigeren (de PDF verandert niet) of de factuur crediteren via *Corrigeren…*.
 - **Betalingen** handmatig registreren (ook deelbetalingen). De status gaat dan van Open naar Deels betaald, Te laat of Betaald.
 - **Praktijken**: een overzicht met per praktijk de plaats, het aantal facturen, wat dit jaar gefactureerd is, wat openstaat en de laatste factuur. Klik door naar een praktijkpagina met:
   - vier beknopte cijfers: gefactureerd, openstaand, uren en gemiddelde betaaltijd
@@ -157,6 +163,7 @@ De app volgt de macOS-conventies en Apple's ontwerpprincipes:
   MEDIKAS_TEST_CLICKS=1 MEDIKAS_DATA_DIR=/tmp/st1 .build/debug/MediKas --selftest-clicks  # echte muisklikken (zijbalk, rij, nummer)
   MEDIKAS_DATA_DIR=/tmp/st2 .build/debug/MediKas --selftest-keyboard          # toetsenbord in de factuur-editor
   MEDIKAS_DATA_DIR=/tmp/st3 .build/debug/MediKas --selftest-filters           # factuurfilters
+  MEDIKAS_DATA_DIR=/tmp/si1 .build/debug/MediKas --selftest-import            # bestaande factuur importeren
   MEDIKAS_DATA_DIR=/tmp/sp1 .build/debug/MediKas --render-previews /tmp/shots  # schermen als PNG (buiten beeld)
   MEDIKAS_DATA_DIR=/tmp/sw1 .build/debug/MediKas --seed-demo --snapshot-window /tmp/win  # het échte venster per pagina
   MEDIKAS_TEST_SLOW_LOAD=30 …                                                    # trage opslag nabootsen (laadtoestand)

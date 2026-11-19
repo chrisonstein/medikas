@@ -231,6 +231,10 @@ struct InvoiceTableRow: View {
                 HStack(spacing: 4) {
                     Text(invoice.number).monospacedDigit().underline(hoverNumber).lineLimit(1).fixedSize()
                     PDFBadge().opacity(hoverNumber ? 1 : 0.8)
+                    if invoice.isImported {
+                        Image(systemName: "tray.and.arrow.down").font(.caption2).foregroundStyle(.secondary)
+                            .help("Geïmporteerd: buiten MediKas gemaakt")
+                    }
                 }
                 .foregroundStyle(accent)
                 .fontWeight(.medium)
@@ -239,7 +243,8 @@ struct InvoiceTableRow: View {
             }
             .buttonStyle(.plain)
             .onHover { hoverNumber = $0 }
-            .help(store.archivedURL(invoice) != nil ? "Open de gearchiveerde PDF" : "Open de PDF (voorbeeld)")
+            .help(invoice.isImported ? "Open de originele (geïmporteerde) PDF"
+                  : store.archivedURL(invoice) != nil ? "Open de gearchiveerde PDF" : "Open de PDF (voorbeeld)")
             .accessibilityLabel("PDF van \(invoice.documentTitle.lowercased()) \(invoice.number)")
             .accessibilityHint("Opent de PDF in Voorvertoning")
 
@@ -298,6 +303,7 @@ struct InvoiceTableRow: View {
     private func accessibilityText(_ status: InvoiceStatus) -> String {
         var parts = ["\(invoice.documentTitle) \(invoice.number)", invoice.billTo.displayName,
                      "datum \(invoice.date.long)", invoice.total.euro, status.rawValue]
+        if invoice.isImported { parts.append("geïmporteerd") }
         if invoice.isSent && !invoice.isCredit { parts.append("vervalt \(invoice.dueDate.long)") }
         if let paid = invoice.paidDate { parts.append("betaald op \(paid.long)") }
         if !invoice.memo.isEmpty { parts.append("opmerking: \(invoice.memo)") }

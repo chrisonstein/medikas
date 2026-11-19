@@ -267,8 +267,12 @@ struct ClientPage: View {
                         .menuStyle(.button)
                         .menuIndicator(.hidden)
                         .fixedSize()
-                        .help("Meer acties: archiveren of verwijderen")
+                        .help("Meer acties: bestaande factuur importeren, archiveren of verwijderen")
                         .accessibilityLabel("Meer acties")
+                        Button { store.startImport(for: c) } label: {
+                            Label("Importeer…", systemImage: "tray.and.arrow.down").labelStyle(.titleAndIcon)
+                        }
+                        .help("Importeer een factuur die je buiten MediKas hebt gemaakt (PDF)")
                         PrimaryToolbarButton(title: "Nieuwe factuur", icon: "plus") { store.startNewInvoice(for: c) }
                             .disabled(c.archived)
                     }
@@ -380,7 +384,8 @@ struct ClientPage: View {
             if invoices.isEmpty {
                 EmptyState(icon: "doc.text", title: "Nog geen facturen",
                            message: "Facturen voor deze praktijk verschijnen hier.",
-                           primary: c.archived ? nil : ("Nieuwe factuur", { store.startNewInvoice(for: c) }), compact: true)
+                           primary: c.archived ? nil : ("Nieuwe factuur", { store.startNewInvoice(for: c) }),
+                           secondary: ("Importeer bestaande factuur…", { store.startImport(for: c) }), compact: true)
             } else {
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
@@ -419,6 +424,10 @@ struct ClientInvoiceRow: View {
                 HStack(spacing: 4) {
                     Text(invoice.number).monospacedDigit().lineLimit(1).fixedSize()
                     PDFBadge().opacity(0.8)
+                    if invoice.isImported {
+                        Image(systemName: "tray.and.arrow.down").font(.caption2).foregroundStyle(.secondary)
+                            .help("Geïmporteerd: buiten MediKas gemaakt")
+                    }
                 }
                 .foregroundStyle(accent).fontWeight(.medium)
                 .frame(width: 124, height: 28, alignment: .leading)
@@ -463,6 +472,7 @@ struct ClientActions: View {
     var body: some View {
         Button("Nieuwe factuur voor deze praktijk") { store.startNewInvoice(for: client) }
             .disabled(client.archived)
+        Button("Importeer bestaande factuur…") { store.startImport(for: client) }
         Divider()
         if client.archived {
             Button("Zet terug uit archief") { store.setArchived(client, false) }

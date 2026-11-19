@@ -15,6 +15,9 @@ struct InvoiceEditorView: View {
     @Local private var showCorrection = false
     /// Net toegevoegde werkdag: krijgt meteen de focus (uren).
     @Local private var newLineID: UUID?
+    /// Geïmporteerde factuur: de originele PDF en wat daaruit te lezen viel.
+    @Local private var importPDF: URL?
+    @Local private var pdfInfo: ImportedPDFInfo?
 
     init(draft: Invoice, isNew: Bool) {
         _draft = Local(wrappedValue: draft)
@@ -27,7 +30,8 @@ struct InvoiceEditorView: View {
 
     /// Een verstuurde factuur is vergrendeld tot je bewust ‘Toch bewerken’ kiest.
     private var wasSent: Bool { store.invoice(draft.id)?.isSent == true }
-    private var locked: Bool { wasSent && !unlocked }
+    /// Een geïmporteerde factuur is niet vergrendeld: de originele PDF verandert nooit, je corrigeert alleen de registratie.
+    private var locked: Bool { wasSent && !unlocked && !draft.isImported }
     private var hasLinks: Bool {
         draft.creditsInvoiceID != nil || draft.replacesInvoiceID != nil || draft.creditedByID != nil || draft.replacedByID != nil
     }
@@ -38,6 +42,7 @@ struct InvoiceEditorView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     titleBar
                     lockBanner
+                    if draft.isImported { importCard }
                     if hasLinks { linksCard }
                     // Rij 1: gegevens + totaal
                     HStack(alignment: .top, spacing: 16) {
@@ -60,7 +65,14 @@ struct InvoiceEditorView: View {
         }
         .background(CanvasBackground())
         .frame(minWidth: 1000, idealWidth: 1080, minHeight: 680, idealHeight: 800)
-        .onAppear { if original == nil { original = draft } }
+        .onAppear {
+            if original == nil { original = draft }
+            if draft.isImported { loadImportPDF() }
+        }
+        .onDisappear {
+            // Niet bewaard: de gekozen PDF niet meer onthouden (na bewaren is hij al gearchiveerd)
+            store.importSources[draft.id] = nil
+        }
         .confirmationDialog("Factuur \(draft.number) verwijderen?", isPresented: $confirmDelete) {
             Button("Verwijderen", role: .destructive) { store.delete(draft); dismiss() }
         } message: {
@@ -170,12 +182,70 @@ struct InvoiceEditorView: View {
         .background(Color.well.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
+    // MARK: Importeren
+
+    private var importCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CardHeader(icon: "tray.and.arrow.down", title: "Geïmporteerde factuur",
+                       subtitle: "Buiten MediKas gemaakt. De originele PDF blijft ongewijzigd in het archief.") {
+                if wasSent && !draft.isCredit && !draft.isCredited {
+                    Button("Corrigeren…") { showCorrection = true }
+                        .help("Crediteer deze factuur en maak eventueel een nieuwe")
+                }
+            }
+            HStack(spacing: 10) {
+                Image(systemName: "doc.richtext").foregroundStyle(.secondary)
+                Text(importPDF?.lastPathComponent ?? "Geen PDF gekozen")
+                    .lineLimit(1).truncationMode(.middle)
+                    .foregroundStyle(importPDF == nil ? .secondary : .primary)
+                Spacer()
+                if let importPDF {
+                    Button("Open") { NSWorkspace.shared.open(importPDF) }
+                }
+                Button(importPDF == nil ? "Kies PDF…" : "Andere PDF…") {
+                    guard let source = store.replaceImportPDF(for: draft.id) else { return }
+                    importPDF = source.url
+                    pdfInfo = source.info
+                }
+            }
+            .padding(10)
+            .background(Color.well.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            if let check = totalCheck {
+                Label(check.text, systemImage: check.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(check.ok ? Color.green : Color.orange)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Vul de werkdagen in zoals op de factuur, dan kloppen ook de uren, km en statistieken.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+        }
+        .card()
+    }
+
+    /// Vergelijkt het totaal van de werkdagen met het totaal dat in de PDF staat.
+    private var totalCheck: (ok: Bool, text: String)? {
+        guard let pdfTotal = pdfInfo?.total else { return nil }
+        if draft.total == pdfTotal {
+            return (true, "Het totaal komt overeen met de PDF (\(pdfTotal.euro)).")
+        }
+        return (false, "In de PDF staat \(pdfTotal.euro), de werkdagen komen op \(draft.total.euro) (verschil \((pdfTotal - draft.total).euro)). Controleer uren, tarieven en km.")
+    }
+
+    private func loadImportPDF() {
+        let url = store.importSources[draft.id]?.url ?? store.archivedURL(draft)
+        importPDF = url
+        pdfInfo = store.importSources[draft.id]?.info ?? url.map(ImportedPDFInfo.read)
+    }
+
     // MARK: Kop
 
     private var titleBar: some View {
         HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(isNew ? (draft.isCredit ? "Nieuwe creditfactuur" : "Nieuwe factuur") : "\(draft.documentTitle) \(draft.number)")
+                Text(isNew ? (draft.isImported ? "Bestaande factuur importeren" : draft.isCredit ? "Nieuwe creditfactuur" : "Nieuwe factuur")
+                           : "\(draft.documentTitle) \(draft.number)")
                     .font(.system(size: 28, weight: .semibold)).tracking(-0.6)
                 HStack(spacing: 8) {
                     StatusBadge(status: draft.status())
@@ -217,10 +287,11 @@ struct InvoiceEditorView: View {
                             if draft.dueDate.startOfDay == oldDefaultDue.startOfDay {
                                 draft.dueDate = newDate.adding(days: store.data.settings.paymentTermDays)
                             }
-                            if isNew && newDate.year != draft.date.year {
+                            if isNew && !draft.isImported && newDate.year != draft.date.year {
                                 draft.number = store.nextInvoiceNumber(for: newDate, excluding: draft.id)
                             }
                             draft.date = newDate.startOfDay
+                            if draft.isImported { draft.sentDate = draft.date }
                         }))
                     }
                     LabeledField(label: "Vervaldatum",
@@ -228,11 +299,18 @@ struct InvoiceEditorView: View {
                         DateField(date: $draft.dueDate)
                     }
                     LabeledField(label: "Status") {
+                        if draft.isImported {
+                            Label("Geïmporteerd", systemImage: "tray.and.arrow.down")
+                                .foregroundStyle(.secondary)
+                                .frame(minHeight: 30, alignment: .leading)
+                                .help("Een geïmporteerde factuur telt mee als verstuurd, in de cijfers, betalingen en statistieken.")
+                        } else {
                         ToggleRow(title: "Verstuurd", isOn: Binding(get: { draft.isSent }, set: {
                             draft.isSent = $0
                             draft.sentDate = $0 ? (draft.sentDate ?? Date().startOfDay) : nil
                         }))
                         .help("Concepten tellen niet mee in de cijfers. Bij PDF bewaren of mailen wordt een factuur automatisch op 'verstuurd' gezet.")
+                        }
                     }
                 }
                 GridRow {
@@ -471,6 +549,13 @@ struct InvoiceEditorView: View {
                     .font(.callout).foregroundStyle(.orange)
             }
             Spacer()
+            if draft.isImported {
+                Button { if let importPDF { NSWorkspace.shared.open(importPDF) } } label: {
+                    Label("Originele PDF", systemImage: "doc.richtext")
+                }
+                .disabled(importPDF == nil)
+                .help("Open de geïmporteerde PDF")
+            } else {
             Group {
                 Button { withSaved { InvoicePDF.preview($0, store: store) } } label: { Label("Voorbeeld", systemImage: "eye") }
                     .help("Bewaar en open de PDF in Voorvertoning")
@@ -478,9 +563,11 @@ struct InvoiceEditorView: View {
                 Button { withSaved { InvoicePDF.mail($0, store: store) } } label: { Label("Mail…", systemImage: "envelope") }
             }
             .disabled(problem != nil)
+            }
             Divider().frame(height: 20)
             Button("Annuleren") {
-                if draft != original { confirmDiscard = true } else { dismiss() }
+                let pdfChanged = !isNew && store.importSources[draft.id] != nil
+                if draft != original || pdfChanged { confirmDiscard = true } else { dismiss() }
             }
             .keyboardShortcut(.cancelAction)
             Button("Bewaar") { save(close: true) }

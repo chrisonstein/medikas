@@ -245,6 +245,10 @@ struct Invoice: Identifiable, Codable, Hashable {
     /// Pad van de gearchiveerde PDF, relatief aan de gegevensmap (bv. "Facturen/2026/Factuur 2026-001 - ….pdf").
     var archivedFile: String?
 
+    /// Buiten MediKas gemaakt en geïmporteerd. De originele PDF staat in het archief;
+    /// MediKas maakt voor deze factuur nooit zelf een PDF.
+    var isImported = false
+
     init() {}
 
     init(from decoder: Decoder) throws {
@@ -273,6 +277,7 @@ struct Invoice: Identifiable, Codable, Hashable {
         relatedDate = c.value(.relatedDate, d.relatedDate)
         editedAfterSending = c.value(.editedAfterSending, d.editedAfterSending)
         archivedFile = c.value(.archivedFile, d.archivedFile)
+        isImported = c.value(.isImported, d.isImported)
     }
 
     var sortedLines: [WorkLine] { lines.sorted { $0.date < $1.date } }

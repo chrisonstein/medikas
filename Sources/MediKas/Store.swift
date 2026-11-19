@@ -34,6 +34,8 @@ final class Store: ObservableObject {
     @Published var data: AppData { didSet { if !isLoading { scheduleSave() } } }
     @Published var sidebar: SidebarItem? = .overzicht
     @Published var editingInvoice: Invoice?
+    /// Gekozen originele PDF's van geïmporteerde facturen die nog niet bewaard zijn.
+    var importSources: [UUID: ImportSource] = [:]
     @Published var paymentInvoice: Invoice?
     @Published var logo: NSImage?
     @Published var patternImage: NSImage?
@@ -432,7 +434,8 @@ final class Store: ObservableObject {
     /// `keepPrevious`: bewaar de bestaande PDF eerst als eerdere versie (bij aanpassen van een verstuurde factuur).
     func archivePDF(_ id: UUID, keepPrevious: Bool = false) {
         guard data.settings.archivePDFs, unavailableReason == nil,
-              let i = data.invoices.firstIndex(where: { $0.id == id }), data.invoices[i].isSent else { return }
+              let i = data.invoices.firstIndex(where: { $0.id == id }), data.invoices[i].isSent,
+              !data.invoices[i].isImported else { return }   // geïmporteerd: de originele PDF blijft staan
         let inv = data.invoices[i]
         guard let pdf = InvoicePDF.data(for: inv, settings: data.settings, brand: brand) else { return }
         let rel = archivePath(for: inv)
@@ -503,7 +506,7 @@ final class Store: ObservableObject {
 
     /// Maakt PDF's aan voor verstuurde facturen die nog niet (meer) in het archief staan.
     func archiveMissing() {
-        let missing = data.invoices.filter { $0.isSent && archivedURL($0) == nil }
+        let missing = data.invoices.filter { $0.isSent && !$0.isImported && archivedURL($0) == nil }
         for inv in missing { archivePDF(inv.id) }
         show(missing.isEmpty ? "Alle verstuurde facturen staan al in het archief." : "\(missing.count) factu\(missing.count == 1 ? "ur" : "ren") gearchiveerd.")
     }
@@ -850,10 +853,15 @@ final class Store: ObservableObject {
             inv.archivedFile = previous.archivedFile
             documentChanged = Store.fingerprint(previous) != Store.fingerprint(inv)
             wasSent = previous.isSent
-            if wasSent && documentChanged { inv.editedAfterSending.append(Date()) }
+            // Bij een geïmporteerde factuur verandert de PDF niet; je corrigeert alleen de registratie.
+            if wasSent && documentChanged && !inv.isImported { inv.editedAfterSending.append(Date()) }
             data.invoices[i] = inv
         } else {
             data.invoices.append(inv)
+        }
+        if inv.isImported {
+            storeImportedPDF(inv.id)
+            return
         }
         // Alleen een nieuwe PDF als de factuur zelf veranderde (niet bij alleen een betaling of opmerking)
         if inv.isSent && (documentChanged || archivedURL(inv) == nil || !wasSent) {

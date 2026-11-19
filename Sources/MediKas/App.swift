@@ -52,6 +52,11 @@ struct MediKasApp: App {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             }
             CommandGroup(after: .importExport) {
+                Button("Importeer bestaande factuur…") {
+                    store.startImport(for: store.sidebar == .praktijken ? store.client(store.selectedClientID) : nil)
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+                Divider()
                 Button("Maak back-up") { store.backupNow() }.disabled(store.backupDestination == nil)
                 Button("Bewaar back-up als…") { store.saveBackupAs() }
                 Button("Zet back-up terug…") { store.importBackup() }
