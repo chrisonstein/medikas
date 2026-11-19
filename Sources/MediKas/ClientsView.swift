@@ -308,6 +308,7 @@ struct ClientPage: View {
                     .frame(width: 340)
                 }
                 .fixedSize(horizontal: false, vertical: true)
+                .zIndex(1)   // adressuggesties mogen over de kaarten eronder vallen
 
                 invoicesCard(c)
             }
@@ -323,8 +324,9 @@ struct ClientPage: View {
         VStack(alignment: .leading, spacing: 14) {
             CardHeader(icon: "building.2", title: "Gegevens", subtitle: "Komen zo op de factuur")
             LabeledField(label: "Naam") {
-                InputField("Naam van de praktijk", text: client.name, autofocus: client.wrappedValue.name.isEmpty)
+                PracticeNameField(client: client, autofocus: client.wrappedValue.name.isEmpty)
             }
+            .zIndex(1)   // keuzelijst met adressuggesties valt over de velden eronder
             HStack(alignment: .top, spacing: 12) {
                 LabeledField(label: "Ter attentie van") { InputField("Contactpersoon", text: client.contactPerson, icon: "person") }
                 LabeledField(label: "E-mail voor facturen") { InputField("facturen@praktijk.nl", text: client.email, icon: "envelope") }
