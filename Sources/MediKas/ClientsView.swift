@@ -310,6 +310,8 @@ struct ClientPage: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .zIndex(1)   // adressuggesties mogen over de kaarten eronder vallen
 
+                DocumentsCard(clientID: c.id)
+
                 invoicesCard(c)
             }
             .padding(.horizontal, 28).padding(.bottom, 28).padding(.top, 6)

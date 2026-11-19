@@ -104,6 +104,8 @@ struct Client: Identifiable, Codable, Hashable {
     var commuteKm: Decimal = 0
     var notes = ""
     var archived = false
+    /// Naam van de map in Waarnemingsovereenkomsten ("" = nog geen documenten). Volgt de praktijknaam.
+    var documentsFolder = ""
 
     init() {}
 
@@ -122,6 +124,7 @@ struct Client: Identifiable, Codable, Hashable {
         commuteKm = c.value(.commuteKm, d.commuteKm)
         notes = c.value(.notes, d.notes)
         archived = c.value(.archived, d.archived)
+        documentsFolder = c.value(.documentsFolder, d.documentsFolder)
     }
 
     var displayName: String { name.isEmpty ? "Naamloze praktijk" : name }

@@ -37,8 +37,11 @@ Boekhouding voor zzp-artsen, zoals een waarnemend huisarts: facturen voor waarne
 - **Praktijken**: een overzicht met per praktijk de plaats, het aantal facturen, wat dit jaar gefactureerd is, wat openstaat en de laatste factuur. Klik door naar een praktijkpagina met:
   - vier beknopte cijfers: gefactureerd, openstaand, uren en gemiddelde betaaltijd
   - de gegevens, tarieven en notities
+  - documenten, zoals waarnemingsovereenkomsten
   - alle facturen
   Terug naar het overzicht gaat met "‹ Praktijken" of ⌘[. Elke praktijk heeft eigen tarieven en vaste woon-werk km. Een nieuwe praktijk krijgt automatisch het standaard uurtarief en de standaard km-vergoeding uit de instellingen.
+  - **Adres opzoeken**: typ de naam van de praktijk en kies een suggestie uit Apple Kaarten (↑/↓, ↩). Naam, adres, postcode en plaats worden ingevuld en zijn daarna gewoon aan te passen.
+  - **Documenten** per praktijk (bijv. contracten): toevoegen via *Voeg toe…* of door ze op de kaart te slepen, meerdere tegelijk. Ze worden gekopieerd naar `Waarnemingsovereenkomsten/<praktijknaam>/` in de gegevensmap, dus ze synchroniseren en gaan mee in de back-ups. Hernoem je de praktijk, dan verhuist de map mee. Bestanden die je zelf in die map zet, verschijnen ook in MediKas.
   - **Verwijderen** gaat via een rechtermuisklik, ⌫ of de knop onderaan. Zonder facturen: verwijderen na bevestiging (⌘Z maakt het ongedaan). Met alleen concepten: die worden meeverwijderd, en dat staat in de bevestiging. Met verstuurde facturen kan verwijderen niet (bewaarplicht); dan kun je de praktijk alleen archiveren.
 - **Ongedaan maken (⌘Z)** voor verwijderen, betalingen, wijzigingen aan facturen en praktijken.
 - **Statistieken** per maand, kwartaal of jaar: omzet, ontvangsten, uren, werkdagen, km, gemiddelde tarieven en een overzicht per praktijk. Te tellen op **werkdatum** of op **factuurdatum** (die laatste is handig voor de aangifte).

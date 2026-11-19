@@ -234,6 +234,7 @@ extension Store {
             }
             // Archief-PDF's aanvullen (bestaande worden niet overschreven)
             Store.mergeCopy(from: unpacked.appendingPathComponent("Facturen", isDirectory: true), to: archiveFolder)
+            Store.mergeCopy(from: unpacked.appendingPathComponent(Store.documentsFolderName, isDirectory: true), to: documentsRoot)
             try? fm.removeItem(at: unpacked)
         }
         show("Back-up teruggezet: \(restored.invoices.count) facturen, \(restored.clients.count) praktijken.")
